@@ -67,8 +67,8 @@ set_target_properties(heongpu PROPERTIES
 
 add_library(HEonGPU::heongpu ALIAS heongpu)
 add_library(heongpu_c_api SHARED
-    heongpu_c_api/heongpu_c_api.cu
-    heongpu_c_api/heongpu_c_api.h
+    heongpu_c_api/bfv_c_api.cu
+    heongpu_c_api/bfv_c_api.h
 )
 target_link_libraries(heongpu_c_api PUBLIC # Or PRIVATE, depending on usage
     HEonGPU::heongpu # Links against the static heongpu library
@@ -89,7 +89,7 @@ install(TARGETS heongpu_c_api
     ARCHIVE DESTINATION lib # For Windows DLL import libraries
     RUNTIME DESTINATION bin # For Windows DLLs
 )
-install(FILES heongpu_c_api/heongpu_c_api.h DESTINATION include) 
+install(FILES heongpu_c_api/bfv_c_api.h DESTINATION include) 
 
 
 install(TARGETS heongpu

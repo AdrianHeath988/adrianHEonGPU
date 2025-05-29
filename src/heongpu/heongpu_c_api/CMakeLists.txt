@@ -22,8 +22,8 @@ project(heongpu_c_api LANGUAGES CXX CUDA)
 find_package(CUDAToolkit REQUIRED)
 
 add_library(heongpu_c_api SHARED 
-    heongpu_c_api.cpp
-    heongpu_c_api.h
+    bfv_c_api.cpp
+    bfv_c_api.h
 )
 
 # Link against the main HEonGPU library.
