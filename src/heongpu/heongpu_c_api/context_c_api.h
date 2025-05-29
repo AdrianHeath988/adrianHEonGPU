@@ -50,6 +50,10 @@ typedef struct {
     bool keep_initial_condition;
 } C_ExecutionOptions;
 
+typedef struct {
+    double real;
+    double imag;
+} C_ComplexDouble;
 
 typedef struct {
     uint64_t value; // The modulus value
