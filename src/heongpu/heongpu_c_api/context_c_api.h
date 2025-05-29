@@ -33,8 +33,23 @@ typedef enum {
 
 typedef enum {
     C_STORAGE_TYPE_HOST = 0x1,
-    C_STORAGE_TYPE_DEVICE = 0x2
+    C_STORAGE_TYPE_DEVICE = 0x2,
+    C_STORAGE_TYPE_INVALID = 0xFF
 } C_storage_type;
+
+typedef enum {
+    C_SCHEME_TYPE_NONE = 0x0,
+    C_SCHEME_TYPE_BFV = 0x1,
+    C_SCHEME_TYPE_CKKS = 0x2,
+    C_SCHEME_TYPE_BGV = 0x3
+} C_scheme_type;
+
+typedef struct {
+    C_cudaStream_t stream;
+    C_storage_type storage;
+    bool keep_initial_condition;
+} C_ExecutionOptions;
+
 
 typedef struct {
     uint64_t value; // The modulus value
