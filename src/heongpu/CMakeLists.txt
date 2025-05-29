@@ -65,6 +65,33 @@ set_target_properties(heongpu PROPERTIES
         CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}
 )
 
+add_library(HEonGPU::heongpu ALIAS heongpu)
+add_library(heongpu_c_api SHARED
+    heongpu_c_api/heongpu_c_api.cu
+    heongpu_c_api/heongpu_c_api.h
+)
+target_link_libraries(heongpu_c_api PUBLIC # Or PRIVATE, depending on usage
+    HEonGPU::heongpu # Links against the static heongpu library
+    CUDA::cudart
+)
+
+set_target_properties(heongpu_c_api PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    CUDA_SEPARABLE_COMPILATION ON
+    OUTPUT_NAME "heongpu_c_api-${PROJECT_VERSION}"
+)
+set_property(TARGET heongpu_c_api PROPERTY VERSION ${PROJECT_VERSION})
+set_property(TARGET heongpu_c_api PROPERTY SOVERSION 1)
+
+# Installation for C API library and header
+install(TARGETS heongpu_c_api
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib # For Windows DLL import libraries
+    RUNTIME DESTINATION bin # For Windows DLLs
+)
+install(FILES heongpu_c_api/heongpu_c_api.h DESTINATION include) 
+
+
 install(TARGETS heongpu
   EXPORT ${HEonGPU_TARGETS_EXPORT_NAME}
   RUNTIME DESTINATION ${RUNTIME_DESTINATION}
