@@ -18,9 +18,11 @@ typedef struct HE_CKKS_Context_s HE_CKKS_Context;
 
 // From schemes.h
 typedef enum {
+    C_KEYSWITCHING_NONE = 0,
     C_KEYSWITCHING_METHOD_I = 1, 
     C_KEYSWITCHING_METHOD_II = 2,
-    C_KEYSWITCHING_METHOD_III = 3;
+    C_KEYSWITCHING_METHOD_III = 3,
+    C_KEYSWITCHING_TYPE_INVALID = 0xFF,
 } C_keyswitching_type;
 
 // From secstdparams.h
@@ -56,6 +58,40 @@ typedef struct {
 } C_ComplexDouble;
 
 typedef struct {
+    const unsigned char* key_data;
+    size_t key_len;
+    const unsigned char* nonce_data;
+    size_t nonce_len;
+    const unsigned char* pstring_data; // Personalization string
+    size_t pstring_len;
+} C_RNGSeed_Const_Data;
+
+typedef struct {
+    unsigned char* key_data;
+    size_t key_len;
+    unsigned char* nonce_data;
+    size_t nonce_len;
+    unsigned char* pstring_data; // Personalization string
+    size_t pstring_len;
+} C_RNGSeed_Data;
+
+typedef struct {
+    const int* galois_elements_data;
+    size_t galois_elements_len;
+    const int* rotation_steps_data;
+    size_t rotation_steps_len;
+} C_RotationIndices_Const_Data;
+
+typedef struct {
+    int* galois_elements_data;
+    size_t galois_elements_len;
+    int* rotation_steps_data;
+    size_t rotation_steps_len;
+} C_RotationIndices_Data;
+
+
+
+typedef struct {
     uint64_t value; // The modulus value
     uint64_t bit;   // Bit-length of the modulus
     uint64_t mu;    // Barrett reduction constant
@@ -71,7 +107,19 @@ typedef struct {
 
 
 // --- CKKS Context Functions ---
+/**
+ * @brief Frees the dynamically allocated members within a C_RNGSeed_Data struct.
+ * Does not free the struct itself if it was stack-allocated.
+ * @param seed_data Pointer to the C_RNGSeed_Data struct whose members are to be freed.
+ */
+void HEonGPU_Free_C_RNGSeed_Data_Members(C_RNGSeed_Data* seed_data);
 
+/**
+ * @brief Frees the dynamically allocated members within a C_RotationIndices_Data struct.
+ * Does not free the struct itself if it was stack-allocated.
+ * @param indices_data Pointer to the C_RotationIndices_Data struct whose members are to be freed.
+ */
+void HEonGPU_Free_C_RotationIndices_Data_Members(C_RotationIndices_Data* indices_data);
 /**
  * @brief Creates a new CKKS HEContext instance.
  * @param method Integer representing C_keyswitching_type.

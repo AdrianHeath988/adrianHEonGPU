@@ -38,7 +38,16 @@ static heongpu::sec_level_type map_c_sec_level(C_sec_level_type c_sec) {
     }
 }
 
-
+void HEonGPU_Free_C_RNGSeed_Data_Members(C_RNGSeed_Data* seed_data) {
+    if (seed_data) {
+        if (seed_data->key_data) free(seed_data->key_data);
+        if (seed_data->nonce_data) free(seed_data->nonce_data);
+        if (seed_data->pstring_data) free(seed_data->pstring_data);
+        seed_data->key_data = nullptr; seed_data->key_len = 0;
+        seed_data->nonce_data = nullptr; seed_data->nonce_len = 0;
+        seed_data->pstring_data = nullptr; seed_data->pstring_len = 0;
+    }
+}
 extern "C" {
 
 HE_CKKS_Context* HEonGPU_CKKS_Context_Create(C_keyswitching_type method,
@@ -264,6 +273,21 @@ int HEonGPU_CKKS_Context_Serialize(HE_CKKS_Context* context, unsigned char** out
         }
         *out_len = 0;
         return -3;
+    }
+}
+
+void HEonGPU_Free_C_RotationIndices_Data_Members(C_RotationIndices_Data* indices_data) {
+    if (indices_data) {
+        if (indices_data->galois_elements_data) {
+            free(indices_data->galois_elements_data);
+            indices_data->galois_elements_data = nullptr;
+        }
+        indices_data->galois_elements_len = 0;
+        if (indices_data->rotation_steps_data) {
+            free(indices_data->rotation_steps_data);
+            indices_data->rotation_steps_data = nullptr;
+        }
+        indices_data->rotation_steps_len = 0;
     }
 }
 
