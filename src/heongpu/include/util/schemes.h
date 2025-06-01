@@ -7,7 +7,7 @@
 #define HEONGPU_SCHEMES_H
 
 #include "defines.h"
-
+#include <cstdint> 
 namespace heongpu
 {
     enum class Scheme

@@ -11,9 +11,7 @@
 #include <algorithm> // For std::copy, std::min
 
 // Define the opaque struct to hold the actual C++ HEContext object
-struct HE_CKKS_Context_s {
-    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_context;
-};
+typedef struct HE_CKKS_Context_s HE_CKKS_Context;
 
 // Helper to map C enum to C++ enum for keyswitching_type
 static heongpu::keyswitching_type map_c_keyswitch_type(C_keyswitching_type c_type) {

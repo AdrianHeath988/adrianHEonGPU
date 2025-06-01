@@ -15,10 +15,7 @@
 #include <new>      // For std::nothrow
 
 // Define the opaque struct
-struct HE_CKKS_KeyGenerator_s {
-    heongpu::HEKeyGenerator<heongpu::Scheme::CKKS>* cpp_keygen;
-};
-
+typedef struct HE_CKKS_KeyGenerator_s HE_CKKS_KeyGenerator;
 // Helper to safely access underlying C++ pointers from opaque C pointers
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context_kg(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) return nullptr;

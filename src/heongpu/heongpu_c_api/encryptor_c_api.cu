@@ -15,9 +15,9 @@
 #include <new>      // For std::nothrow
 
 // Define the opaque struct
-struct HE_CKKS_Encryptor_s {
-    heongpu::HEEncryptor<heongpu::Scheme::CKKS>* cpp_encryptor;
-};
+
+
+typedef struct HE_CKKS_Encryptor_s HE_CKKS_Encryptor;
 
 // Helper to safely access underlying C++ pointers from opaque C pointers
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context_enc(HE_CKKS_Context* context) {

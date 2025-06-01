@@ -15,10 +15,7 @@
 #include <new>       // For std::nothrow
 
 // Define the opaque struct
-struct HE_CKKS_SecretKey_s {
-    heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_secretkey;
-};
-
+typedef struct HE_CKKS_SecretKey_s HE_CKKS_SecretKey;
 // Helper to safely access underlying C++ HEContext pointer
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) { // Assuming cpp_context from context_c_api.cu

@@ -17,14 +17,10 @@
 
 
 // Define the opaque structs
-struct HE_CKKS_PublicKey_s {
-    heongpu::Publickey<heongpu::Scheme::CKKS>* cpp_publickey;
-};
 
-struct HE_CKKS_MultipartyPublicKey_s {
-    heongpu::MultipartyPublickey<heongpu::Scheme::CKKS>* cpp_mp_publickey;
-};
+typedef struct HE_CKKS_PublicKey_s HE_CKKS_PublicKey;
 
+typedef struct HE_CKKS_MultipartyPublicKey_s HE_CKKS_MultipartyPublicKey;
 // Helper to safely access underlying C++ HEContext pointer
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) {

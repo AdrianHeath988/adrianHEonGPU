@@ -1,11 +1,12 @@
 #include "ciphertext_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 
 #include "ckks/context.cuh"
 #include "ckks/ciphertext.cuh"
-#include "util/hostvector.cuh" // For heongpu::HostVector
-#include "util/schemes.h"      // For heongpu::Data64 (uint64_t)
-#include "util/storagemanager.cuh" // For heongpu::storage_type
+#include "hostvector.cuh" // For heongpu::HostVector
+#include "schemes.h"      // For heongpu::Data64 (uint64_t)
+#include "storagemanager.cuh" // For heongpu::storage_type
 
 #include <vector>
 #include <sstream>
@@ -14,9 +15,7 @@
 #include <cstring>
 #include <new>
 
-struct HE_CKKS_Ciphertext_s {
-    heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ciphertext;
-};
+typedef struct HE_CKKS_Ciphertext_s HE_CKKS_Ciphertext;
 
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) {

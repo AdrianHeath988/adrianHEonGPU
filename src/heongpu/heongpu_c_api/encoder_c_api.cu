@@ -13,9 +13,8 @@
 #include <new>      // For std::nothrow
 
 // Define the opaque struct to hold the actual C++ HEEncoder object
-struct HE_CKKS_Encoder_s {
-    heongpu::HEEncoder<heongpu::Scheme::CKKS>* cpp_encoder;
-};
+
+typedef struct HE_CKKS_Encoder_s HE_CKKS_Encoder;
 
 // Helper to safely access underlying C++ pointers from opaque C pointers
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {

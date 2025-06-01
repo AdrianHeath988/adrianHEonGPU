@@ -16,17 +16,11 @@
 #include <new>       // For std::nothrow
 
 // Define opaque structs
-struct HE_CKKS_RelinKey_s {
-    heongpu::Relinkey<heongpu::Scheme::CKKS>* cpp_relinkey;
-};
 
-struct HE_CKKS_MultipartyRelinKey_s {
-    heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>* cpp_mp_relinkey;
-};
+typedef struct HE_CKKS_RelinKey_s HE_CKKS_RelinKey;
+typedef struct HE_CKKS_MultipartyRelinKey_s HE_CKKS_MultipartyRelinKey;
+typedef struct HE_CKKS_GaloisKey_s HE_CKKS_GaloisKey;
 
-struct HE_CKKS_GaloisKey_s {
-    heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_galoiskey;
-};
 
 // Helper to safely access underlying C++ HEContext pointer
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {

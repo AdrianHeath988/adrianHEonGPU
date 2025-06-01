@@ -22,8 +22,28 @@ project(heongpu_c_api LANGUAGES CXX CUDA)
 find_package(CUDAToolkit REQUIRED)
 
 add_library(heongpu_c_api SHARED 
-    bfv_c_api.cpp
-    bfv_c_api.h
+    ciphertext_c_api.cu
+    ciphertext_c_api.h
+    context_c_api.cu
+    context_c_api.h
+    decryptor_c_api.cu
+    decryptor_c_api.h
+    encoder_c_api.cu
+    encoder_c_api.h
+    evaluationkey_c_api.cu
+    evaluationkey_c_api.h
+    keygenerator_c_api.cu
+    keygenerator_c_api.h
+    operator_c_api.cu
+    operator_c_api.h
+    plaintext_c_api.cu
+    plaintext_c_api.h
+    publickey_c_api.cu
+    publickey_c_api.h
+    secretkey_c_api.cu
+    secretkey_c_api.h
+    serializer_c_api.cu
+    serializer_c_api.h
 )
 
 # Link against the main HEonGPU library.
@@ -36,7 +56,6 @@ target_link_libraries(heongpu_c_api PRIVATE HEonGPU::heongpu CUDA::cudart)
 # or not strictly necessary if the C API cpp file doesn't have .cu kernels itself.
 set_target_properties(heongpu_c_api PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-# Installation (optional, but good practice)
 install(TARGETS heongpu_c_api
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib

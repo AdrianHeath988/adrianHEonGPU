@@ -13,9 +13,8 @@
 #include <cstring>   // For std::memcpy
 #include <new>       // For std::nothrow
 
-struct HE_CKKS_Plaintext_s {
-    heongpu::Plaintext<heongpu::Scheme::CKKS>* cpp_plaintext;
-};
+
+typedef struct HE_CKKS_Plaintext_s HE_CKKS_Plaintext;
 
 // Helper to safely access the underlying C++ HEContext pointer
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {

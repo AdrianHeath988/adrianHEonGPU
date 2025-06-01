@@ -67,8 +67,28 @@ set_target_properties(heongpu PROPERTIES
 
 add_library(HEonGPU::heongpu ALIAS heongpu)
 add_library(heongpu_c_api SHARED
-    heongpu_c_api/bfv_c_api.cu
-    heongpu_c_api/bfv_c_api.h
+    heongpu_c_api/ciphertext_c_api.cu
+    heongpu_c_api/ciphertext_c_api.h
+    heongpu_c_api/context_c_api.cu
+    heongpu_c_api/context_c_api.h
+    heongpu_c_api/decryptor_c_api.cu
+    heongpu_c_api/decryptor_c_api.h
+    heongpu_c_api/encoder_c_api.cu
+    heongpu_c_api/encoder_c_api.h
+    heongpu_c_api/evaluationkey_c_api.cu
+    heongpu_c_api/evaluationkey_c_api.h
+    heongpu_c_api/keygenerator_c_api.cu
+    heongpu_c_api/keygenerator_c_api.h
+    heongpu_c_api/operator_c_api.cu
+    heongpu_c_api/operator_c_api.h
+    heongpu_c_api/plaintext_c_api.cu
+    heongpu_c_api/plaintext_c_api.h
+    heongpu_c_api/publickey_c_api.cu
+    heongpu_c_api/publickey_c_api.h
+    heongpu_c_api/secretkey_c_api.cu
+    heongpu_c_api/secretkey_c_api.h
+    heongpu_c_api/serializer_c_api.cu
+    heongpu_c_api/serializer_c_api.h
 )
 target_link_libraries(heongpu_c_api PUBLIC # Or PRIVATE, depending on usage
     HEonGPU::heongpu # Links against the static heongpu library
@@ -89,7 +109,19 @@ install(TARGETS heongpu_c_api
     ARCHIVE DESTINATION lib # For Windows DLL import libraries
     RUNTIME DESTINATION bin # For Windows DLLs
 )
-install(FILES heongpu_c_api/bfv_c_api.h DESTINATION include) 
+install(FILES 
+    heongpu_c_api/ciphertext_c_api.h
+    heongpu_c_api/context_c_api.h
+    heongpu_c_api/decryptor_c_api.h
+    heongpu_c_api/encoder_c_api.h
+    heongpu_c_api/evaluationkey_c_api.h
+    heongpu_c_api/keygenerator_c_api.h
+    heongpu_c_api/operator_c_api.h
+    heongpu_c_api/plaintext_c_api.h
+    heongpu_c_api/publickey_c_api.h
+    heongpu_c_api/secretkey_c_api.h
+    heongpu_c_api/serializer_c_api.h
+DESTINATION include) 
 
 
 install(TARGETS heongpu

@@ -16,14 +16,8 @@
 
 
 // Define opaque structs
-struct HE_CKKS_ArithmeticOperator_s {
-    heongpu::HEArithmeticOperator<heongpu::Scheme::CKKS>* cpp_arith_op;
-};
-
-struct HE_CKKS_LogicOperator_s {
-    heongpu::HELogicOperator<heongpu::Scheme::CKKS>* cpp_logic_op;
-};
-
+typedef struct HE_CKKS_ArithmeticOperator_s HE_CKKS_ArithmeticOperator;
+typedef struct HE_CKKS_LogicOperator_s HE_CKKS_LogicOperator;
 // Helper to safely access underlying C++ pointers from opaque C pointers
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) return nullptr;
