@@ -3,10 +3,10 @@
 
 #include "ckks/context.cuh"
 #include "ckks/publickey.cuh" // The C++ class we are wrapping
-#include "util/hostvector.cuh"
-#include "util/schemes.h"
-#include "util/storagemanager.cuh"
-#include "util/random.cuh"     // For heongpu::RNGSeed
+#include "hostvector.cuh"
+#include "schemes.h"
+#include "storagemanager.cuh"
+#include "random.cuh"     // For heongpu::RNGSeed
 
 #include <vector>
 #include <sstream>

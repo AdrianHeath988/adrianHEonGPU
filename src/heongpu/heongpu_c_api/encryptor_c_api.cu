@@ -8,7 +8,7 @@
 #include "ckks/ciphertext.cuh"
 #include "ckks/encryptor.cuh" // The C++ class we are wrapping
 
-#include "util/storagemanager.cuh" // For heongpu::ExecutionOptions
+#include "storagemanager.cuh" // For heongpu::ExecutionOptions
 
 #include <vector>
 #include <iostream> // For error logging

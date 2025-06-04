@@ -35,34 +35,61 @@ static C_storage_type map_cpp_to_c_storage_type(heongpu::storage_type cpp_type) 
             return static_cast<C_storage_type>(-1); // Indicate error/unknown
     }
 }
+static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context_from_opaque_ct(HE_CKKS_Context* context_c_api_ptr) {
+    if (!context_c_api_ptr || !context_c_api_ptr->cpp_context) {
+        std::cerr << "Error: Invalid HE_CKKS_Context pointer." << std::endl;
+        return nullptr;
+    }
+    return context_c_api_ptr->cpp_context;
+}
+static heongpu::ExecutionOptions map_c_to_cpp_execution_options_ct(const C_ExecutionOptions* c_options) {
+    heongpu::ExecutionOptions cpp_options; // Defaults from C++ struct definition
+    if (c_options) {
+        cpp_options.stream_ = static_cast<cudaStream_t>(c_options->stream);
+        if (c_options->storage == C_STORAGE_TYPE_HOST) {
+            cpp_options.storage_ = heongpu::storage_type::HOST;
+        } else if (c_options->storage == C_STORAGE_TYPE_DEVICE) {
+            cpp_options.storage_ = heongpu::storage_type::DEVICE;
+        } else {
+            // Keep default or handle C_STORAGE_TYPE_INVALID if it's a possible input
+            cpp_options.storage_ = heongpu::storage_type::DEVICE; // Defaulting to DEVICE
+        }
+        cpp_options.keep_initial_condition_ = c_options->keep_initial_condition;
+    }
+    return cpp_options;
+}
 
 extern "C" {
 
 // --- Lifecycle & Serialization (from previous version, with minor safety improvements) ---
 
-HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Create(HE_CKKS_Context* context,
-                                                   C_cudaStream_t stream) {
-    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context(context);
+HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Create(HE_CKKS_Context* context_c_api_ptr,
+                                                   const C_ExecutionOptions* options_c) {
+    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_from_opaque_ct(context_c_api_ptr);
     if (!cpp_h_context) {
         std::cerr << "HEonGPU_CKKS_Ciphertext_Create failed: HE_CKKS_Context is null or invalid." << std::endl;
         return nullptr;
     }
+
     try {
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_ct(options_c);
         heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct =
-            new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_stream);
+            new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_exec_options);
+        
         if (!cpp_ct) {
             std::cerr << "HEonGPU_CKKS_Ciphertext_Create failed: C++ Ciphertext allocation failed." << std::endl;
             return nullptr;
         }
+
         HE_CKKS_Ciphertext* c_api_ciphertext = new (std::nothrow) HE_CKKS_Ciphertext_s;
         if (!c_api_ciphertext) {
             std::cerr << "HEonGPU_CKKS_Ciphertext_Create failed: C API Ciphertext wrapper allocation failed." << std::endl;
-            delete cpp_ct;
+            delete cpp_ct; 
             return nullptr;
         }
         c_api_ciphertext->cpp_ciphertext = cpp_ct;
         return c_api_ciphertext;
+
     } catch (const std::exception& e) {
         std::cerr << "HEonGPU_CKKS_Ciphertext_Create failed with C++ exception: " << e.what() << std::endl;
         return nullptr;
@@ -71,6 +98,7 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Create(HE_CKKS_Context* context,
         return nullptr;
     }
 }
+
 
 void HEonGPU_CKKS_Ciphertext_Delete(HE_CKKS_Ciphertext* ciphertext) {
     if (ciphertext) {
@@ -167,54 +195,34 @@ int HEonGPU_CKKS_Ciphertext_Save(HE_CKKS_Ciphertext* ciphertext,
     }
 }
 
-HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Load(HE_CKKS_Context* context,
+HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Load(HE_CKKS_Context* context_c_api_ptr,
                                                  const unsigned char* bytes,
                                                  size_t len,
-                                                 C_cudaStream_t stream) {
-    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context(context);
-    if (!cpp_h_context) {
-         std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed: HE_CKKS_Context is null or invalid." << std::endl;
-        return nullptr;
-    }
-     if (!bytes && len > 0) {
-        std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed: Invalid bytes pointer for non-zero length." << std::endl;
-        return nullptr;
-    }
+                                                 const C_ExecutionOptions* options_c) { // CHANGED
+    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_from_opaque_ct(context_c_api_ptr);
+    if (!cpp_h_context) { return nullptr; }
+    if (!bytes && len > 0) { return nullptr; }
 
     HE_CKKS_Ciphertext* c_api_ciphertext = nullptr;
     heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct = nullptr;
     try {
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        cpp_ct = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_stream);
-        if (!cpp_ct) {
-            std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed: C++ Ciphertext allocation failed." << std::endl;
-            return nullptr;
-        }
-        if (len > 0 && bytes) {
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_ct(options_c);
+        cpp_ct = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_exec_options); // CHANGED CALL
+        if (!cpp_ct) { return nullptr; }
+
+        if (len > 0 && bytes) { 
             std::string str_data(reinterpret_cast<const char*>(bytes), len);
             std::istringstream iss(str_data, std::ios::binary);
             cpp_ct->load(iss); 
         }
+        
         c_api_ciphertext = new (std::nothrow) HE_CKKS_Ciphertext_s;
-        if (!c_api_ciphertext) {
-             std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed: C API Ciphertext wrapper allocation failed." << std::endl;
-            delete cpp_ct;
-            return nullptr;
-        }
+        if (!c_api_ciphertext) { delete cpp_ct; return nullptr; }
         c_api_ciphertext->cpp_ciphertext = cpp_ct;
         return c_api_ciphertext;
-    } catch (const std::exception& e) {
-        std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed with C++ exception: " << e.what() << std::endl;
-        delete cpp_ct; 
-        delete c_api_ciphertext; 
-        return nullptr;
-    } catch (...) {
-        std::cerr << "HEonGPU_CKKS_Ciphertext_Load failed due to an unknown C++ exception." << std::endl;
-        delete cpp_ct;
-        delete c_api_ciphertext;
-        return nullptr;
-    }
+    } catch (...) { delete cpp_ct; delete c_api_ciphertext; return nullptr; }
 }
+
 
 // --- CKKS Ciphertext Getters ---
 
@@ -256,7 +264,7 @@ int HEonGPU_CKKS_Ciphertext_GetCiphertextSize(HE_CKKS_Ciphertext* ciphertext) {
     try {
         // Ciphertext<CKKS> has a public method like:
         // inline int cipher_size() const noexcept { return cipher_size_; }
-        return ciphertext->cpp_ciphertext->cipher_size();
+        return ciphertext->cpp_ciphertext->size();
     } catch (...) { return 0; }
 }
 
@@ -268,7 +276,7 @@ double HEonGPU_CKKS_Ciphertext_GetScale(HE_CKKS_Ciphertext* ciphertext) {
     try {
         // Ciphertext<CKKS> has a public method like:
         // inline double get_scale() const noexcept { return scale_; }
-        return ciphertext->cpp_ciphertext->get_scale();
+        return ciphertext->cpp_ciphertext->scale();
     } catch (...) { return -1.0; }
 }
 
@@ -280,11 +288,11 @@ bool HEonGPU_CKKS_Ciphertext_IsInNttDomain(HE_CKKS_Ciphertext* ciphertext) {
     try {
         // Ciphertext<CKKS> has a public method like:
         // inline bool is_in_ntt_domain() const noexcept { return in_ntt_domain_; }
-        return ciphertext->cpp_ciphertext->is_in_ntt_domain();
+        return ciphertext->cpp_ciphertext->in_ntt_domain();
     } catch (...) { return false; }
 }
 
-C_storage_type HEonGPU_CKKS_Ciphertext_GetStorageType(HE_CKKS_Ciphertext* ciphertext) {
+bool HEonGPU_CKKS_Ciphertext_Is_On_Device(HE_CKKS_Ciphertext* ciphertext) {
     if (!ciphertext || !ciphertext->cpp_ciphertext) {
         std::cerr << "Error: Invalid ciphertext pointer in GetStorageType." << std::endl;
         return static_cast<C_storage_type>(-1); // Error indicator
@@ -292,8 +300,7 @@ C_storage_type HEonGPU_CKKS_Ciphertext_GetStorageType(HE_CKKS_Ciphertext* cipher
     try {
         // Ciphertext<CKKS> has a public method like:
         // inline heongpu::storage_type get_storage_type() const noexcept { return storage_type_; }
-        heongpu::storage_type cpp_st = ciphertext->cpp_ciphertext->get_storage_type();
-        return map_cpp_to_c_storage_type(cpp_st);
+        return ciphertext->cpp_ciphertext->is_on_device();
     } catch (...) { return static_cast<C_storage_type>(-1); }
 }
 
@@ -312,7 +319,7 @@ size_t HEonGPU_CKKS_Ciphertext_GetData(HE_CKKS_Ciphertext* ciphertext,
         // The C++ get_data would likely handle copying from device to a temporary HostVector if needed
 
         // Create a temporary C++ HostVector to receive the data.
-        heongpu::HostVector<heongpu::Data64> temp_host_vector;
+        heongpu::HostVector<Data64> temp_host_vector;
         
         // Call the C++ method.
         // The C++ method itself needs to be able to determine how many elements to copy based on its internal state
@@ -324,7 +331,7 @@ size_t HEonGPU_CKKS_Ciphertext_GetData(HE_CKKS_Ciphertext* ciphertext,
         size_t elements_to_copy = std::min(buffer_elements, elements_in_ct);
 
         if (elements_to_copy > 0) {
-            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(heongpu::Data64));
+            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(Data64));
         }
         
         // If buffer_elements < elements_in_ct, it's a partial copy

@@ -2,9 +2,9 @@
 #include "heongpu.cuh"
 #include "ckks/context.cuh"
 #include "ckks/plaintext.cuh"
-#include "util/hostvector.cuh"
-#include "util/schemes.h"      // For heongpu::scheme_type, heongpu::Data64
-#include "util/storagemanager.cuh" // For heongpu::storage_type, heongpu::ExecutionOptions
+#include "hostvector.cuh"
+#include "schemes.h"      // For heongpu::scheme_type, heongpu::Data64
+#include "storagemanager.cuh" // For heongpu::storage_type, heongpu::ExecutionOptions
 
 #include <vector>
 #include <sstream>

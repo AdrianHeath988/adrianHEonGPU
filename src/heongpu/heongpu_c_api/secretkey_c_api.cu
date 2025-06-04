@@ -3,9 +3,9 @@
 
 #include "ckks/context.cuh"
 #include "ckks/secretkey.cuh" // The C++ class we are wrapping
-#include "util/hostvector.cuh"
-#include "util/schemes.h"
-#include "util/storagemanager.cuh"
+#include "hostvector.cuh"
+#include "schemes.h"
+#include "storagemanager.cuh"
 
 #include <vector>
 #include <sstream>

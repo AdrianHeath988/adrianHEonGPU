@@ -1,5 +1,5 @@
 #include "serializer_c_api.h"
-#include "util/serializer.h" // For heongpu::serializer::compress and ::decompress
+#include "serializer.h" // For heongpu::serializer::compress and ::decompress
 
 #include <vector>
 #include <iostream> // For error logging

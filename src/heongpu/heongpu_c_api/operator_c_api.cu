@@ -8,7 +8,7 @@
 #include "ckks/evaluationkey.cuh"
 #include "ckks/operator.cuh" // The C++ classes we are wrapping
 
-#include "util/storagemanager.cuh" // For heongpu::ExecutionOptions
+#include "storagemanager.cuh" // For heongpu::ExecutionOptions
 
 #include <vector>
 #include <iostream> // For error logging

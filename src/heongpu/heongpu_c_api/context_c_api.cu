@@ -1,9 +1,9 @@
 #include "context_c_api.h"
 #include "heongpu.cuh" // Main HEonGPU include for HEContext, Scheme, types
-#include "util/schemes.h"      // For heongpu::Scheme, heongpu::keyswitching_type
-#include "util/secstdparams.h" // For heongpu::sec_level_type
-#include "util/hostvector.cuh" // For heongpu::HostVector
-#include "util/util.cuh"       // For heongpu::Data128, heongpu::Modulus64 (via modular_arith.cuh)
+#include "schemes.h"      // For heongpu::Scheme, heongpu::keyswitching_type
+#include "secstdparams.h" // For heongpu::sec_level_type
+#include "hostvector.cuh" // For heongpu::HostVector
+#include "util.cuh"       // For heongpu::Data128, heongpu::Modulus64 (via modular_arith.cuh)
 
 #include <vector>
 #include <iostream> // For potential error logging (stderr)

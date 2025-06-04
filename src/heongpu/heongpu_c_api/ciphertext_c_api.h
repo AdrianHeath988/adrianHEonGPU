@@ -17,7 +17,12 @@ typedef struct HE_CKKS_Ciphertext_s HE_CKKS_Ciphertext;
 // --- CKKS Ciphertext Lifecycle & Serialization ---
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Create(HE_CKKS_Context* context,
-                                                   C_cudaStream_t stream);
+                                                   const C_ExecutionOptions* options); // Takes options
+
+HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Load(HE_CKKS_Context* context,
+                                                 const unsigned char* bytes,
+                                                 size_t len,
+                                                 const C_ExecutionOptions* options); // Takes options
                                                    
 void HEonGPU_CKKS_Ciphertext_Delete(HE_CKKS_Ciphertext* ciphertext);
 
@@ -29,11 +34,6 @@ int HEonGPU_CKKS_Ciphertext_Assign_Copy(HE_CKKS_Ciphertext* dest_ciphertext,
 int HEonGPU_CKKS_Ciphertext_Save(HE_CKKS_Ciphertext* ciphertext,
                                  unsigned char** out_bytes,
                                  size_t* out_len);
-
-HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Load(HE_CKKS_Context* context,
-                                                 const unsigned char* bytes,
-                                                 size_t len,
-                                                 C_cudaStream_t stream);
 
 // --- CKKS Ciphertext Getters ---
 
@@ -77,7 +77,7 @@ bool HEonGPU_CKKS_Ciphertext_IsInNttDomain(HE_CKKS_Ciphertext* ciphertext);
  * @param ciphertext Opaque pointer to the HE_CKKS_Ciphertext.
  * @return The C_storage_type enum value, or an indicator of error/invalid.
  */
-C_storage_type HEonGPU_CKKS_Ciphertext_GetStorageType(HE_CKKS_Ciphertext* ciphertext);
+bool HEonGPU_CKKS_Ciphertext_Is_On_Device(HE_CKKS_Ciphertext* ciphertext);
 
 /**
  * @brief Copies the ciphertext's coefficient data to a user-provided host buffer.

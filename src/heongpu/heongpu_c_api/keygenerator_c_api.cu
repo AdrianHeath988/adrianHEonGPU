@@ -7,8 +7,8 @@
 #include "ckks/evaluationkey.cuh"
 #include "ckks/keygenerator.cuh" // The C++ class we are wrapping
 
-#include "util/random.cuh"         // For heongpu::RNGSeed
-#include "util/storagemanager.cuh" // For heongpu::ExecutionOptions
+#include "random.cuh"         // For heongpu::RNGSeed
+#include "storagemanager.cuh" // For heongpu::ExecutionOptions
 
 #include <vector>
 #include <iostream> // For error logging

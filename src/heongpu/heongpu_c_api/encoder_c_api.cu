@@ -4,9 +4,9 @@
 #include "ckks/context.cuh"
 #include "ckks/plaintext.cuh"
 #include "ckks/encoder.cuh" // The C++ class we are wrapping
-#include "util/hostvector.cuh"
-#include "util/complex.cuh"   // For heongpu::Complex64
-#include "util/schemes.h"     // For heongpu::Data64
+#include "hostvector.cuh"
+#include "complex.cuh"   // For heongpu::Complex64
+#include "schemes.h"     // For heongpu::Data64
 
 #include <vector>
 #include <iostream> // For error logging

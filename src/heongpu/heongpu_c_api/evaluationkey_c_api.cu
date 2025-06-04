@@ -4,9 +4,9 @@
 #include "ckks/context.cuh"
 #include "ckks/evaluationkey.cuh" // The C++ classes we are wrapping
 #include "keygeneration.cuh"      // For heongpu::RotationIndices
-#include "util/hostvector.cuh"
-#include "util/schemes.h"
-#include "util/storagemanager.cuh"
+#include "hostvector.cuh"
+#include "schemes.h"
+#include "storagemanager.cuh"
 
 #include <vector>
 #include <sstream>
