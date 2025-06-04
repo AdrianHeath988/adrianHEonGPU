@@ -1,4 +1,5 @@
 #include "context_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh" // Main HEonGPU include for HEContext, Scheme, types
 #include "schemes.h"      // For heongpu::Scheme, heongpu::keyswitching_type
 #include "secstdparams.h" // For heongpu::sec_level_type
@@ -49,15 +50,13 @@ void HEonGPU_Free_C_RNGSeed_Data_Members(C_RNGSeed_Data* seed_data) {
 extern "C" {
 
 HE_CKKS_Context* HEonGPU_CKKS_Context_Create(C_keyswitching_type method,
-                                             C_sec_level_type sec_level,
-                                             C_cudaStream_t stream) {
+                                             C_sec_level_type sec_level) {
     try {
         heongpu::keyswitching_type cpp_method = map_c_keyswitch_type(method);
         heongpu::sec_level_type cpp_sec_level = map_c_sec_level(sec_level);
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
 
         heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_ctx =
-            new heongpu::HEContext<heongpu::Scheme::CKKS>(cpp_method, cpp_sec_level, cpp_stream);
+            new heongpu::HEContext<heongpu::Scheme::CKKS>(cpp_method, cpp_sec_level);
 
         HE_CKKS_Context* c_api_context = new HE_CKKS_Context_s;
         c_api_context->cpp_context = cpp_ctx;
@@ -91,54 +90,50 @@ void HEonGPU_CKKS_Context_SetPolyModulusDegree(HE_CKKS_Context* context, size_t 
     }
 }
 
-void HEonGPU_CKKS_Context_SetCoeffModulusPSValues(HE_CKKS_Context* context,
-                                                  const int* coeff_modulus_ps_values,
-                                                  size_t count) {
-    if (context && context->cpp_context && coeff_modulus_ps_values) {
-        try {
-            std::vector<int> ps_values(coeff_modulus_ps_values, coeff_modulus_ps_values + count);
-            context->cpp_context->set_coeff_modulus_ps_values(ps_values);
-        } catch (const std::exception& e) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusPSValues failed: " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusPSValues failed due to an unknown exception." << std::endl;
+int HEonGPU_CKKS_Context_SetCoeffModulusValues(HE_CKKS_Context* context,
+                                               const uint64_t* log_q_bases_data,
+                                               size_t log_q_bases_len,
+                                               const uint64_t* log_p_bases_data,
+                                               size_t log_p_bases_len) {
+    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = context->cpp_context;
+
+    if (!cpp_h_context) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusValues failed: Invalid context pointer." << std::endl;
+        return -1; // Error
+    }
+    if ((log_q_bases_len > 0 && !log_q_bases_data) || (log_p_bases_len > 0 && !log_p_bases_data)) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusValues failed: Non-zero length with null data pointer." << std::endl;
+        return -1; // Error for inconsistent arguments
+    }
+
+    try {
+        std::vector<Data64> cpp_log_q_bases;
+        if (log_q_bases_len > 0) {
+            cpp_log_q_bases.assign(log_q_bases_data, log_q_bases_data + log_q_bases_len);
         }
+
+        std::vector<Data64> cpp_log_p_bases;
+        if (log_p_bases_len > 0) {
+            cpp_log_p_bases.assign(log_p_bases_data, log_p_bases_data + log_p_bases_len);
+        }
+        
+        cpp_h_context->set_coeff_modulus_values(cpp_log_q_bases, cpp_log_p_bases);
+        return 0; // Success
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusValues failed with C++ exception: " << e.what() << std::endl;
+        return -2; // Error
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusValues failed due to an unknown C++ exception." << std::endl;
+        return -2; // Error
     }
 }
 
-void HEonGPU_CKKS_Context_SetCoeffModulusQSValues(HE_CKKS_Context* context,
-                                                  const int* coeff_modulus_qs_values,
-                                                  size_t count) {
-    if (context && context->cpp_context && coeff_modulus_qs_values) {
-        try {
-            std::vector<int> qs_values(coeff_modulus_qs_values, coeff_modulus_qs_values + count);
-            context->cpp_context->set_coeff_modulus_qs_values(qs_values);
-        } catch (const std::exception& e) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusQSValues failed: " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusQSValues failed due to an unknown exception." << std::endl;
-        }
-    }
-}
 
-void HEonGPU_CKKS_Context_SetCoeffModulusDefaultValues(HE_CKKS_Context* context,
-                                                       uint32_t num_primes,
-                                                       uint32_t log_scale) {
-    if (context && context->cpp_context) {
-        try {
-            context->cpp_context->set_coeff_modulus_default_values(num_primes, log_scale);
-        } catch (const std::exception& e) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusDefaultValues failed: " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusDefaultValues failed due to an unknown exception." << std::endl;
-        }
-    }
-}
 
 void HEonGPU_CKKS_Context_SetExactModulus(HE_CKKS_Context* context, bool exact_mod) {
     if (context && context->cpp_context) {
         try {
-            context->cpp_context->set_exact_modulus(exact_mod);
+            context->cpp_context->set_poly_modulus_degree(exact_mod);
         } catch (const std::exception& e) {
             std::cerr << "HEonGPU_CKKS_Context_SetExactModulus failed: " << e.what() << std::endl;
         } catch (...) {
@@ -147,17 +142,7 @@ void HEonGPU_CKKS_Context_SetExactModulus(HE_CKKS_Context* context, bool exact_m
     }
 }
 
-void HEonGPU_CKKS_Context_SetScale(HE_CKKS_Context* context, double scale) {
-    if (context && context->cpp_context) {
-        try {
-            context->cpp_context->set_scale(scale);
-        } catch (const std::exception& e) {
-            std::cerr << "HEonGPU_CKKS_Context_SetScale failed: " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "HEonGPU_CKKS_Context_SetScale failed due to an unknown exception." << std::endl;
-        }
-    }
-}
+
 
 int HEonGPU_CKKS_Context_Generate(HE_CKKS_Context* context) {
     if (context && context->cpp_context) {
@@ -187,56 +172,50 @@ size_t HEonGPU_CKKS_Context_GetPolyModulusDegree(HE_CKKS_Context* context) {
 size_t HEonGPU_CKKS_Context_GetCoeffModulusSize(HE_CKKS_Context* context) {
     if (context && context->cpp_context) {
         try {
-            return context->cpp_context->get_coeff_modulus_size();
+            return context->cpp_context->get_ciphertext_modulus_count();
         } catch (...) { return 0; }
     }
     return 0;
 }
 
-size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
-                                            C_Modulus64* moduli_buffer,
-                                            size_t buffer_count) {
-    if (context && context->cpp_context && moduli_buffer) {
-        try {
-            const heongpu::HostVector<heongpu::Modulus64>& cpp_moduli = 
-                context->cpp_context->get_coeff_modulus_host();
-            size_t num_to_copy = std::min(buffer_count, cpp_moduli.size());
-            for (size_t i = 0; i < num_to_copy; ++i) {
-                moduli_buffer[i].value = cpp_moduli[i].value;
-                moduli_buffer[i].bit   = cpp_moduli[i].bit;
-                moduli_buffer[i].mu    = cpp_moduli[i].mu;
-            }
-            return num_to_copy;
-        } catch (const std::exception& e) {
-            std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed: " << e.what() << std::endl;
-            return 0; 
-        } catch (...) {
-            std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed due to an unknown exception." << std::endl;
-            return 0;
-        }
-    }
-    return 0;
-}
+//HEonGPU Does not have a getter to support such a method
+// size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
+//                                             C_Modulus64* moduli_buffer,
+//                                             size_t buffer_count) {
+//     if (context && context->cpp_context && moduli_buffer) {
+//         try {
+//             const heongpu::HostVector<heongpu::Modulus64>& cpp_moduli = 
+//                 context->cpp_context->[NEED GETTER HERE]();
+//             size_t num_to_copy = std::min(buffer_count, cpp_moduli.size());
+//             for (size_t i = 0; i < num_to_copy; ++i) {
+//                 moduli_buffer[i].value = cpp_moduli[i].value;
+//                 moduli_buffer[i].bit   = cpp_moduli[i].bit;
+//                 moduli_buffer[i].mu    = cpp_moduli[i].mu;
+//             }
+//             return num_to_copy;
+//         } catch (const std::exception& e) {
+//             std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed: " << e.what() << std::endl;
+//             return 0; 
+//         } catch (...) {
+//             std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed due to an unknown exception." << std::endl;
+//             return 0;
+//         }
+//     }
+//     return 0;
+// }
 
 
 
-double HEonGPU_CKKS_Context_GetScale(HE_CKKS_Context* context) {
-    if (context && context->cpp_context) {
-        try {
-            return context->cpp_context->get_scale();
-        } catch (...) { return -1.0; } // Error indication
-    }
-    return -1.0;
-}
+// double HEonGPU_CKKS_Context_GetScale(HE_CKKS_Context* context) {
+//     if (context && context->cpp_context) {
+//         try {
+//             return context->cpp_context->[HEONGPU DOES NOT SUPPORT]();
+//         } catch (...) { return -1.0; } // Error indication
+//     }
+//     return -1.0;
+// }
 
-C_cudaStream_t HEonGPU_CKKS_Context_GetCUDAStream(HE_CKKS_Context* context) {
-    if (context && context->cpp_context) {
-        try {
-            return static_cast<C_cudaStream_t>(context->cpp_context->get_context_data_stream());
-        } catch (...) { return nullptr;}
-    }
-    return nullptr;
-}
+
 
 int HEonGPU_CKKS_Context_Serialize(HE_CKKS_Context* context, unsigned char** out_bytes, size_t* out_len) {
     if (!context || !context->cpp_context || !out_bytes || !out_len) {
@@ -289,7 +268,7 @@ void HEonGPU_Free_C_RotationIndices_Data_Members(C_RotationIndices_Data* indices
     }
 }
 
-HE_CKKS_Context* HEonGPU_CKKS_Context_Deserialize(const unsigned char* bytes, size_t len, C_cudaStream_t stream) {
+HE_CKKS_Context* HEonGPU_CKKS_Context_Deserialize(const unsigned char* bytes, size_t len) {
     if (!bytes || len == 0) {
         return nullptr;
     }
@@ -300,10 +279,9 @@ HE_CKKS_Context* HEonGPU_CKKS_Context_Deserialize(const unsigned char* bytes, si
         
         heongpu::keyswitching_type default_ks_type = heongpu::keyswitching_type::KEYSWITCHING_METHOD_I;
         heongpu::sec_level_type default_sec_level = heongpu::sec_level_type::sec128;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
 
         heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_ctx =
-            new heongpu::HEContext<heongpu::Scheme::CKKS>(default_ks_type, default_sec_level, cpp_stream);
+            new heongpu::HEContext<heongpu::Scheme::CKKS>(default_ks_type, default_sec_level);
 
         std::string str_data(reinterpret_cast<const char*>(bytes), len);
         std::istringstream iss(str_data, std::ios::binary);

@@ -123,13 +123,11 @@ void HEonGPU_Free_C_RotationIndices_Data_Members(C_RotationIndices_Data* indices
 /**
  * @brief Creates a new CKKS HEContext instance.
  * @param method Integer representing C_keyswitching_type.
- * @param sec_level Integer representing C_sec_level_type.
- * @param stream CUDA stream (can be NULL for default stream).
+ * @param sec_level Integer representing C_sec_level_type (can be a default if C API allows).
  * @return HE_CKKS_Context* Opaque pointer to the created context, or NULL on failure.
  */
 HE_CKKS_Context* HEonGPU_CKKS_Context_Create(C_keyswitching_type method,
-                                             C_sec_level_type sec_level,
-                                             C_cudaStream_t stream);
+                                             C_sec_level_type sec_level);
 
 /**
  * @brief Deletes a CKKS HEContext instance and frees its memory.
@@ -145,32 +143,21 @@ void HEonGPU_CKKS_Context_Delete(HE_CKKS_Context* context);
 void HEonGPU_CKKS_Context_SetPolyModulusDegree(HE_CKKS_Context* context, size_t degree);
 
 /**
- * @brief Sets the coefficient modulus P values for the CKKS context (special moduli).
+ * @brief Sets the coefficient modulus Q and P values for the CKKS context.
+ * These are typically arrays of bit-lengths for the primes.
  * @param context Opaque pointer to the HE_CKKS_Context.
- * @param coeff_modulus_ps_values Pointer to an array of integers.
- * @param count Number of elements in the array.
+ * @param log_q_bases_data Pointer to an array of uint64_t representing log Q prime values.
+ * @param log_q_bases_len Number of elements in the log_q_bases_data array.
+ * @param log_p_bases_data Pointer to an array of uint64_t representing log P prime values.
+ * @param log_p_bases_len Number of elements in the log_p_bases_data array.
+ * @return 0 on success, non-zero on failure.
  */
-void HEonGPU_CKKS_Context_SetCoeffModulusPSValues(HE_CKKS_Context* context,
-                                                  const int* coeff_modulus_ps_values,
-                                                  size_t count);
-/**
- * @brief Sets the coefficient modulus Q values for the CKKS context (prime moduli).
- * @param context Opaque pointer to the HE_CKKS_Context.
- * @param coeff_modulus_qs_values Pointer to an array of integers.
- * @param count Number of elements in the array.
- */
-void HEonGPU_CKKS_Context_SetCoeffModulusQSValues(HE_CKKS_Context* context,
-                                                  const int* coeff_modulus_qs_values,
-                                                  size_t count);
-/**
- * @brief Sets the coefficient modulus using default values based on number of primes and log scale.
- * @param context Opaque pointer to the HE_CKKS_Context.
- * @param num_primes Number of prime moduli to generate for Q.
- * @param log_scale Logarithm of the initial scale.
- */
-void HEonGPU_CKKS_Context_SetCoeffModulusDefaultValues(HE_CKKS_Context* context,
-                                                       uint32_t num_primes,
-                                                       uint32_t log_scale);
+int HEonGPU_CKKS_Context_SetCoeffModulusValues(HE_CKKS_Context* context,
+                                               const uint64_t* log_q_bases_data,
+                                               size_t log_q_bases_len,
+                                               const uint64_t* log_p_bases_data,
+                                               size_t log_p_bases_len);
+
 
 /**
  * @brief Sets the exact modulus flag for the CKKS context.
@@ -179,12 +166,6 @@ void HEonGPU_CKKS_Context_SetCoeffModulusDefaultValues(HE_CKKS_Context* context,
  */
 void HEonGPU_CKKS_Context_SetExactModulus(HE_CKKS_Context* context, bool exact_mod);
 
-/**
- * @brief Sets the initial scale for the CKKS context.
- * @param context Opaque pointer to the HE_CKKS_Context.
- * @param scale The initial scale value.
- */
-void HEonGPU_CKKS_Context_SetScale(HE_CKKS_Context* context, double scale);
 
 /**
  * @brief Generates/finalizes the parameters for the CKKS context.
@@ -228,13 +209,6 @@ size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
  */
 double HEonGPU_CKKS_Context_GetScale(HE_CKKS_Context* context);
 
-/**
- * @brief Gets the CUDA stream associated with the context data.
- * @param context Opaque pointer to the HE_CKKS_Context.
- * @return C_cudaStream_t The CUDA stream (can be NULL).
- */
-C_cudaStream_t HEonGPU_CKKS_Context_GetCUDAStream(HE_CKKS_Context* context);
-
 
 /**
  * @brief Serializes the CKKS context into a byte array.
@@ -255,7 +229,7 @@ int HEonGPU_CKKS_Context_Serialize(HE_CKKS_Context* context, unsigned char** out
  * @param stream CUDA stream to associate with the loaded context (can be NULL).
  * @return HE_CKKS_Context* Opaque pointer to the deserialized context, or NULL on failure.
  */
-HE_CKKS_Context* HEonGPU_CKKS_Context_Deserialize(const unsigned char* bytes, size_t len, C_cudaStream_t stream);
+HE_CKKS_Context* HEonGPU_CKKS_Context_Deserialize(const unsigned char* bytes, size_t len);
 
 /**
  * @brief Frees memory allocated by serialize functions (or other C API functions that allocate).
