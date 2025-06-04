@@ -47,7 +47,7 @@ int HEonGPU_CKKS_Encoder_Encode_Double(HE_CKKS_Encoder* encoder,
                                        const double* message_data,
                                        size_t message_len,
                                        double scale,
-                                       C_cudaStream_t stream);
+                                       const C_ExecutionOptions* c_options);
 
 /**
  * @brief Encodes a message of complex double values into a CKKS plaintext.
@@ -65,7 +65,7 @@ int HEonGPU_CKKS_Encoder_Encode_Complex(HE_CKKS_Encoder* encoder,
                                         const C_ComplexDouble* message_data,
                                         size_t message_len,
                                         double scale,
-                                        C_cudaStream_t stream);
+                                        const C_ExecutionOptions* c_options);
 
 // --- CKKS Decoding Functions ---
 
@@ -83,7 +83,7 @@ int HEonGPU_CKKS_Encoder_Decode_Double(HE_CKKS_Encoder* encoder,
                                        HE_CKKS_Plaintext* pt,
                                        double* message_buffer,
                                        size_t buffer_len,
-                                       C_cudaStream_t stream);
+                                       const C_ExecutionOptions* c_options);
 
 /**
  * @brief Decodes a CKKS plaintext into a message of complex double values.
@@ -98,7 +98,7 @@ int HEonGPU_CKKS_Encoder_Decode_Complex(HE_CKKS_Encoder* encoder,
                                         HE_CKKS_Plaintext* pt,
                                         C_ComplexDouble* message_buffer,
                                         size_t buffer_len,
-                                        C_cudaStream_t stream);
+                                        const C_ExecutionOptions* c_options);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -1,4 +1,5 @@
 #include "decryptor_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 
 #include "ckks/context.cuh"
@@ -22,7 +23,7 @@ static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context_dec(HE_CKKS_Co
     if (!context || !context->cpp_context) return nullptr; // Assuming cpp_context from context_c_api.cu
     return context->cpp_context;
 }
-static heongpu::SecretKey<heongpu::Scheme::CKKS>* get_cpp_secretkey_dec(HE_CKKS_SecretKey* sk) {
+static heongpu::Secretkey<heongpu::Scheme::CKKS>* get_cpp_secretkey_dec(HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return nullptr; // Assuming cpp_secretkey from secretkey_c_api.cu
     return sk->cpp_secretkey;
 }
@@ -62,7 +63,7 @@ extern "C" {
 
 HE_CKKS_Decryptor* HEonGPU_CKKS_Decryptor_Create(HE_CKKS_Context* context, HE_CKKS_SecretKey* sk) {
     heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_dec(context);
-    heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_sk = get_cpp_secretkey_dec(sk);
+    heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_sk = get_cpp_secretkey_dec(sk);
     if (!cpp_h_context || !cpp_sk) {
         std::cerr << "Decryptor_Create: Invalid context or secret key." << std::endl;
         return nullptr;
@@ -102,62 +103,85 @@ int HEonGPU_CKKS_Decryptor_Decrypt(HE_CKKS_Decryptor* decryptor,
       catch (...) { std::cerr << "Decrypt Unknown Error" << std::endl; return -2; }
 }
 
-// --- Noise Budget Calculation ---
 
-double HEonGPU_CKKS_Decryptor_CalculateNoiseBudget(HE_CKKS_Decryptor* decryptor,
-                                                   HE_CKKS_Ciphertext* ct_c,
-                                                   const C_ExecutionOptions* options_c) {
-    if (!decryptor || !decryptor->cpp_decryptor || !ct_c || !get_cpp_ciphertext_dec(ct_c)) {
-        std::cerr << "CalculateNoiseBudget: Invalid argument(s).\n"; return -1.0; // Error indicator
-    }
-    try {
-        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_dec(options_c);
-        return decryptor->cpp_decryptor->calculate_noise_budget(*(get_cpp_ciphertext_dec(ct_c)), cpp_options);
-    } catch (const std::exception& e) { std::cerr << "CalculateNoiseBudget Error: " << e.what() << std::endl; return -1.0; }
-      catch (...) { std::cerr << "CalculateNoiseBudget Unknown Error" << std::endl; return -1.0; }
-}
 
 // --- Multiparty Decryption Functions ---
 
-int HEonGPU_CKKS_Decryptor_PartialDecrypt(HE_CKKS_Decryptor* decryptor,
-                                          HE_CKKS_Plaintext* partial_pt_out_c,
-                                          HE_CKKS_Ciphertext* ct_in_c,
-                                          C_cudaStream_t stream_c) {
-    if (!decryptor || !decryptor->cpp_decryptor || !partial_pt_out_c || !get_cpp_plaintext_dec(partial_pt_out_c) || !ct_in_c || !get_cpp_ciphertext_dec(ct_in_c)) {
-        std::cerr << "PartialDecrypt: Invalid argument(s).\n"; return -1;
+int HEonGPU_CKKS_Decryptor_Multiparty_Decrypt_Partial(HE_CKKS_Decryptor* decryptor,
+                                                      HE_CKKS_Ciphertext* ct_in_c,
+                                                      HE_CKKS_SecretKey* sk_party_c,
+                                                      HE_CKKS_Ciphertext* partial_ct_out_c,
+                                                      C_cudaStream_t stream_c) {
+    if (!decryptor || !decryptor->cpp_decryptor ||
+        !ct_in_c || !get_cpp_ciphertext_dec(ct_in_c) ||
+        !sk_party_c || !get_cpp_secretkey_dec(sk_party_c) ||
+        !partial_ct_out_c || !get_cpp_ciphertext_dec(partial_ct_out_c) ) {
+        std::cerr << "Multiparty_Decrypt_Partial: Invalid argument(s).\n"; return -1;
     }
+
+    heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct_in = get_cpp_ciphertext_dec(ct_in_c);
+    heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_sk_party = get_cpp_secretkey_dec(sk_party_c);
+    heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_partial_ct_out = get_cpp_ciphertext_dec(partial_ct_out_c);
+
     try {
         cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_c);
-        decryptor->cpp_decryptor->partial_decrypt(*(get_cpp_plaintext_dec(partial_pt_out_c)), *(get_cpp_ciphertext_dec(ct_in_c)), cpp_stream);
+        decryptor->cpp_decryptor->multi_party_decrypt_partial(
+            *cpp_ct_in,
+            *cpp_sk_party,
+            *cpp_partial_ct_out,
+            cpp_stream
+        );
         return 0; // Success
-    } catch (const std::exception& e) { std::cerr << "PartialDecrypt Error: " << e.what() << std::endl; return -2; }
-      catch (...) { std::cerr << "PartialDecrypt Unknown Error" << std::endl; return -2; }
+    } catch (const std::exception& e) { 
+        std::cerr << "HEonGPU_CKKS_Decryptor_Multiparty_Decrypt_Partial Error: " << e.what() << std::endl; 
+        return -2; 
+    } catch (...) { 
+        std::cerr << "HEonGPU_CKKS_Decryptor_Multiparty_Decrypt_Partial Unknown Error" << std::endl; 
+        return -2; 
+    }
 }
 
 int HEonGPU_CKKS_Decryptor_DecryptFusion(HE_CKKS_Decryptor* decryptor,
-                                         const HE_CKKS_Ciphertext* const* partial_cts_array_c,
-                                         size_t num_partial_cts,
+                                         const HE_CKKS_Ciphertext* const* partial_decrypt_shares_array_c,
+                                         size_t num_partial_decrypt_shares,
                                          HE_CKKS_Plaintext* final_pt_out_c,
-                                         C_cudaStream_t stream_c) {
-    if (!decryptor || !decryptor->cpp_decryptor || (num_partial_cts > 0 && !partial_cts_array_c) || !final_pt_out_c || !get_cpp_plaintext_dec(final_pt_out_c)) {
+                                         const C_ExecutionOptions* options_c) {
+    if (!decryptor || !decryptor->cpp_decryptor || 
+        (num_partial_decrypt_shares > 0 && !partial_decrypt_shares_array_c) || 
+        !final_pt_out_c || !get_cpp_plaintext_dec(final_pt_out_c) ) {
         std::cerr << "DecryptFusion: Invalid argument(s).\n"; return -1;
     }
+    heongpu::Plaintext<heongpu::Scheme::CKKS>* cpp_final_pt_out = get_cpp_plaintext_dec(final_pt_out_c);
+     if (!cpp_final_pt_out && final_pt_out_c) {
+         std::cerr << "DecryptFusion: Failed to get C++ Plaintext object for output.\n"; return -1;
+    }
+
     try {
         std::vector<heongpu::Ciphertext<heongpu::Scheme::CKKS>> cpp_partial_cts_vec;
-        cpp_partial_cts_vec.reserve(num_partial_cts);
-        for (size_t i = 0; i < num_partial_cts; ++i) {
-            const heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct = get_const_cpp_ciphertext_dec(partial_cts_array_c[i]);
-            if (!cpp_ct) {
-                std::cerr << "DecryptFusion Error: Null ciphertext in array at index " << i << std::endl; return -1;
+        cpp_partial_cts_vec.reserve(num_partial_decrypt_shares);
+        for (size_t i = 0; i < num_partial_decrypt_shares; ++i) {
+            const heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct_share = get_const_cpp_ciphertext_dec(partial_decrypt_shares_array_c[i]);
+            if (!cpp_ct_share) {
+                std::cerr << "DecryptFusion Error: Null ciphertext share in array at index " << i << std::endl; return -1;
             }
-            cpp_partial_cts_vec.push_back(*cpp_ct); // Makes a copy for the vector
+            cpp_partial_cts_vec.push_back(*cpp_ct_share); 
         }
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_c);
-        decryptor->cpp_decryptor->decrypt_fusion_ckks(cpp_partial_cts_vec, *(get_cpp_plaintext_dec(final_pt_out_c)), cpp_stream);
+        
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_dec(options_c); // Map C options to C++ options
+
+        decryptor->cpp_decryptor->multi_party_decrypt_fusion(cpp_partial_cts_vec, 
+                                                              *cpp_final_pt_out, 
+                                                              cpp_options);
         return 0; // Success
-    } catch (const std::exception& e) { std::cerr << "DecryptFusion Error: " << e.what() << std::endl; return -2; }
-      catch (...) { std::cerr << "DecryptFusion Unknown Error" << std::endl; return -2; }
+    } catch (const std::exception& e) { 
+        std::cerr << "HEonGPU_CKKS_Decryptor_DecryptFusion Error: " << e.what() << std::endl; 
+        return -2; 
+    } catch (...) { 
+        std::cerr << "HEonGPU_CKKS_Decryptor_DecryptFusion Unknown Error" << std::endl; 
+        return -2; 
+    }
 }
+
 
 // --- CKKS Decryptor Seed/Offset Management ---
 // These are identical to Encryptor's; good candidates for a shared utility if more PRNGs were wrapped

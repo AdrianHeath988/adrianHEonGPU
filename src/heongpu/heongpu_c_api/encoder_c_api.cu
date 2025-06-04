@@ -1,6 +1,6 @@
 #include "encoder_c_api.h"
 #include "heongpu.cuh"
-
+#include "heongpu_c_api_internal.h"
 #include "ckks/context.cuh"
 #include "ckks/plaintext.cuh"
 #include "ckks/encoder.cuh" // The C++ class we are wrapping
@@ -31,6 +31,21 @@ static heongpu::Plaintext<heongpu::Scheme::CKKS>* get_cpp_plaintext(HE_CKKS_Plai
         return nullptr;
     }
     return pt->cpp_plaintext;
+}
+// Helper to map C_ExecutionOptions to heongpu::ExecutionOptions
+static heongpu::ExecutionOptions map_c_to_cpp_execution_options_enc(const C_ExecutionOptions* c_options) {
+    heongpu::ExecutionOptions cpp_options; // Initializes with C++ defaults
+    if (c_options) {
+        cpp_options.stream_ = static_cast<cudaStream_t>(c_options->stream);
+        if (c_options->storage == C_STORAGE_TYPE_HOST) {
+            cpp_options.storage_ = heongpu::storage_type::HOST;
+        } else if (c_options->storage == C_STORAGE_TYPE_DEVICE) {
+            cpp_options.storage_ = heongpu::storage_type::DEVICE;
+        }
+        // If C_STORAGE_TYPE_INVALID or other, it keeps the C++ default (DEVICE)
+        cpp_options.keep_initial_condition_ = c_options->keep_initial_condition;
+    }
+    return cpp_options;
 }
 
 
@@ -83,22 +98,35 @@ int HEonGPU_CKKS_Encoder_Encode_Double(HE_CKKS_Encoder* encoder,
                                        const double* message_data,
                                        size_t message_len,
                                        double scale,
-                                       C_cudaStream_t stream_in) {
-    if (!encoder || !encoder->cpp_encoder || !pt || !message_data) {
+                                       const C_ExecutionOptions* c_options) { // Parameter name matches .h
+    if (!encoder || !encoder->cpp_encoder || !pt || (message_len > 0 && !message_data)) {
         std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Encode_Double." << std::endl;
-        return -1; // Error
+        return -1; // Error for invalid pointers or message data for non-zero length
     }
+
     heongpu::Plaintext<heongpu::Scheme::CKKS>* cpp_pt = get_cpp_plaintext(pt);
-    if (!cpp_pt) return -1;
+    if (!cpp_pt) {
+        return -1; // Error due to invalid plaintext wrapper
+    }
 
     try {
-        // Convert C array to std::vector<double> or heongpu::HostVector<double>
-        // std::vector is fine as HEEncoder has overloads for it.
-        std::vector<double> cpp_message(message_data, message_data + message_len);
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_in);
+        std::vector<double> cpp_message;
+        if (message_len > 0) {
+            cpp_message.assign(message_data, message_data + message_len);
+        }
+        // Else, cpp_message remains empty, which is valid for some encode overloads
+        // though the C++ function you provided takes const std::vector<double>& message,
+        // so an empty vector will be passed if message_len is 0.
 
-        encoder->cpp_encoder->encode(*cpp_pt, cpp_message, scale, cpp_stream);
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
+
+        // Call the C++ encode method that takes std::vector<double> and ExecutionOptions
+        encoder->cpp_encoder->encode(*cpp_pt, cpp_message, scale, cpp_exec_options);
+        
         return 0; // Success
+    } catch (const std::invalid_argument& e) { // Catch specific known exceptions if possible
+        std::cerr << "HEonGPU_CKKS_Encoder_Encode_Double failed (invalid argument): " << e.what() << std::endl;
+        return -3;
     } catch (const std::exception& e) {
         std::cerr << "HEonGPU_CKKS_Encoder_Encode_Double failed with C++ exception: " << e.what() << std::endl;
         return -2;
@@ -113,7 +141,7 @@ int HEonGPU_CKKS_Encoder_Encode_Complex(HE_CKKS_Encoder* encoder,
                                         const C_ComplexDouble* message_data,
                                         size_t message_len,
                                         double scale,
-                                        C_cudaStream_t stream_in) {
+                                        const C_ExecutionOptions* c_options) {
     if (!encoder || !encoder->cpp_encoder || !pt || !message_data) {
          std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Encode_Complex." << std::endl;
         return -1; // Error
@@ -122,13 +150,12 @@ int HEonGPU_CKKS_Encoder_Encode_Complex(HE_CKKS_Encoder* encoder,
     if (!cpp_pt) return -1;
 
     try {
-        std::vector<heongpu::Complex64> cpp_message(message_len);
+        std::vector<Complex64> cpp_message(message_len);
         for (size_t i = 0; i < message_len; ++i) {
-            cpp_message[i] = heongpu::Complex64(message_data[i].real, message_data[i].imag);
+            cpp_message[i] = Complex64(message_data[i].real, message_data[i].imag);
         }
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_in);
-
-        encoder->cpp_encoder->encode(*cpp_pt, cpp_message, scale, cpp_stream);
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
+        encoder->cpp_encoder->encode(*cpp_pt, cpp_message, scale, cpp_exec_options);
         return 0; // Success
     } catch (const std::exception& e) {
         std::cerr << "HEonGPU_CKKS_Encoder_Encode_Complex failed with C++ exception: " << e.what() << std::endl;
@@ -145,7 +172,7 @@ int HEonGPU_CKKS_Encoder_Decode_Double(HE_CKKS_Encoder* encoder,
                                        HE_CKKS_Plaintext* pt,
                                        double* message_buffer,
                                        size_t buffer_len,
-                                       C_cudaStream_t stream_in) {
+                                       const C_ExecutionOptions* c_options) {
     if (!encoder || !encoder->cpp_encoder || !pt || !message_buffer) {
         std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Decode_Double." << std::endl;
         return -1; // Error
@@ -155,9 +182,8 @@ int HEonGPU_CKKS_Encoder_Decode_Double(HE_CKKS_Encoder* encoder,
 
     try {
         heongpu::HostVector<double> cpp_message_vec; // HEEncoder::decode_ckks populates this
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_in);
-
-        encoder->cpp_encoder->decode_ckks(cpp_message_vec, *cpp_pt, cpp_stream);
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
+        encoder->cpp_encoder->decode(cpp_message_vec, *cpp_pt, cpp_exec_options);
 
         size_t decoded_len = cpp_message_vec.size();
         size_t elements_to_copy = std::min(buffer_len, decoded_len);
@@ -183,7 +209,7 @@ int HEonGPU_CKKS_Encoder_Decode_Complex(HE_CKKS_Encoder* encoder,
                                         HE_CKKS_Plaintext* pt,
                                         C_ComplexDouble* message_buffer,
                                         size_t buffer_len,
-                                        C_cudaStream_t stream_in) {
+                                        const C_ExecutionOptions* c_options) {
     if (!encoder || !encoder->cpp_encoder || !pt || !message_buffer) {
         std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Decode_Complex." << std::endl;
         return -1; // Error
@@ -192,10 +218,10 @@ int HEonGPU_CKKS_Encoder_Decode_Complex(HE_CKKS_Encoder* encoder,
     if (!cpp_pt) return -1;
 
     try {
-        heongpu::HostVector<heongpu::Complex64> cpp_message_vec;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream_in);
+        heongpu::HostVector<Complex64> cpp_message_vec;
 
-        encoder->cpp_encoder->decode_ckks(cpp_message_vec, *cpp_pt, cpp_stream);
+        heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
+        encoder->cpp_encoder->decode(cpp_message_vec, *cpp_pt, cpp_exec_options);
 
         size_t decoded_len = cpp_message_vec.size();
         size_t elements_to_copy = std::min(buffer_len, decoded_len);

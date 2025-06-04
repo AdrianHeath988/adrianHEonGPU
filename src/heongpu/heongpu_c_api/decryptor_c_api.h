@@ -49,51 +49,43 @@ int HEonGPU_CKKS_Decryptor_Decrypt(HE_CKKS_Decryptor* decryptor,
                                    HE_CKKS_Ciphertext* ct_in,
                                    const C_ExecutionOptions* options);
 
-// --- Noise Budget Calculation ---
-
-/**
- * @brief Calculates the noise budget of a ciphertext.
- * @param decryptor Opaque pointer to the HE_CKKS_Decryptor.
- * @param ct Opaque pointer to the HE_CKKS_Ciphertext.
- * @param options Pointer to C_ExecutionOptions (can be NULL for defaults).
- * @return The calculated noise budget in bits, or a negative value on error.
- */
-double HEonGPU_CKKS_Decryptor_CalculateNoiseBudget(HE_CKKS_Decryptor* decryptor,
-                                                   HE_CKKS_Ciphertext* ct,
-                                                   const C_ExecutionOptions* options);
 
 // --- Multiparty Decryption Functions ---
 
 /**
- * @brief Performs partial decryption of a ciphertext using a local secret key share.
- * The result (a partial decryption share) is stored in the provided Plaintext object.
- * @param decryptor Opaque pointer to the HE_CKKS_Decryptor (initialized with a local secret key share).
- * @param partial_pt_out Opaque pointer to an HE_CKKS_Plaintext object to store the partial decryption.
+ * @brief Performs multiparty partial decryption of a ciphertext using a specific party's secret key.
+ * The result (a partial decryption share) is stored in the provided output Ciphertext object.
+ * This wraps the C++ multi_party_decrypt_partial method.
+ * @param decryptor Opaque pointer to the HE_CKKS_Decryptor.
  * @param ct_in Opaque pointer to the HE_CKKS_Ciphertext to be partially decrypted.
- * @param stream CUDA stream for the operation (can be NULL for default).
+ * @param sk_party Opaque pointer to the HE_CKKS_SecretKey of the current party.
+ * @param partial_ct_out Opaque pointer to an HE_CKKS_Ciphertext object to store the partial decryption.
+ * @param stream_c CUDA stream for the operation (can be NULL for default).
  * @return 0 on success, non-zero on failure.
  */
-int HEonGPU_CKKS_Decryptor_PartialDecrypt(HE_CKKS_Decryptor* decryptor,
-                                          HE_CKKS_Plaintext* partial_pt_out,
-                                          HE_CKKS_Ciphertext* ct_in,
-                                          C_cudaStream_t stream);
+int HEonGPU_CKKS_Decryptor_Multiparty_Decrypt_Partial(HE_CKKS_Decryptor* decryptor,
+                                                      HE_CKKS_Ciphertext* ct_in,
+                                                      HE_CKKS_SecretKey* sk_party,
+                                                      HE_CKKS_Ciphertext* partial_ct_out,
+                                                      C_cudaStream_t stream_c);
 
 /**
- * @brief Fuses multiple partial decryptions (represented as Ciphertext objects containing specific data)
- * into a final plaintext.
+ * @brief Fuses multiple partial decryptions (represented as Ciphertext objects)
+ * into a final plaintext using the provided execution options.
+ * This wraps the C++ multi_party_decrypt_fusion method.
  * @param decryptor Opaque pointer to the HE_CKKS_Decryptor.
  * @param partial_decrypt_shares_array Array of opaque pointers to HE_CKKS_Ciphertext objects,
  * each holding a partial decryption share.
  * @param num_partial_decrypt_shares Number of partial decryption shares in the array.
  * @param final_pt_out Opaque pointer to an HE_CKKS_Plaintext object to store the final decrypted result.
- * @param stream CUDA stream for the operation (can be NULL for default).
+ * @param options_c Pointer to C_ExecutionOptions (can be NULL for defaults). // MODIFIED PARAMETER
  * @return 0 on success, non-zero on failure.
  */
 int HEonGPU_CKKS_Decryptor_DecryptFusion(HE_CKKS_Decryptor* decryptor,
                                          const HE_CKKS_Ciphertext* const* partial_decrypt_shares_array,
                                          size_t num_partial_decrypt_shares,
                                          HE_CKKS_Plaintext* final_pt_out,
-                                         C_cudaStream_t stream);
+                                         const C_ExecutionOptions* options_c);
 
 // --- CKKS Decryptor Seed/Offset Management ---
 int HEonGPU_CKKS_Decryptor_GetSeed(HE_CKKS_Decryptor* decryptor);
