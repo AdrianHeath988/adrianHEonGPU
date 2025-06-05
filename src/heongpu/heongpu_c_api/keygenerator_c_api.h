@@ -38,7 +38,7 @@ void HEonGPU_CKKS_KeyGenerator_Delete(HE_CKKS_KeyGenerator* kg);
  * @param kg Opaque pointer to the HE_CKKS_KeyGenerator.
  * @param seed Pointer to the C_RNGSeed_Const_Data containing seed information.
  */
-void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, const C_RNGSeed_Const_Data* seed);
+void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, int seed);
 
 // --- Standard Key Generation ---
 // Note: These functions populate pre-created key objects.
@@ -53,7 +53,6 @@ void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, const C_RNGSeed
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(HE_CKKS_KeyGenerator* kg,
                                                 HE_CKKS_SecretKey* sk,
-                                                int hamming_weight,
                                                 const C_ExecutionOptions* options);
 
 /**
@@ -66,7 +65,7 @@ int HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(HE_CKKS_KeyGenerator* kg,
  */
 int HEonGPU_CKKS_KeyGenerator_GeneratePublicKey(HE_CKKS_KeyGenerator* kg,
                                                 HE_CKKS_PublicKey* pk,
-                                                const HE_CKKS_SecretKey* sk,
+                                                HE_CKKS_SecretKey* sk,
                                                 const C_ExecutionOptions* options);
 
 /**
@@ -79,7 +78,7 @@ int HEonGPU_CKKS_KeyGenerator_GeneratePublicKey(HE_CKKS_KeyGenerator* kg,
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateRelinKey(HE_CKKS_KeyGenerator* kg,
                                                HE_CKKS_RelinKey* rlk,
-                                               const HE_CKKS_SecretKey* sk,
+                                               HE_CKKS_SecretKey* sk,
                                                const C_ExecutionOptions* options);
 
 /**
@@ -93,7 +92,7 @@ int HEonGPU_CKKS_KeyGenerator_GenerateRelinKey(HE_CKKS_KeyGenerator* kg,
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey(HE_CKKS_KeyGenerator* kg,
                                                 HE_CKKS_GaloisKey* gk,
-                                                const HE_CKKS_SecretKey* sk,
+                                                HE_CKKS_SecretKey* sk,
                                                 const C_ExecutionOptions* options);
 
 // --- Multiparty Key Generation ---
@@ -108,7 +107,7 @@ int HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey(HE_CKKS_KeyGenerator* kg,
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey(HE_CKKS_KeyGenerator* kg,
                                                           HE_CKKS_MultipartyPublicKey* mp_pk,
-                                                          const HE_CKKS_SecretKey* sk,
+                                                          HE_CKKS_SecretKey* sk,
                                                           const C_ExecutionOptions* options);
 
 /**
@@ -121,7 +120,7 @@ int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey(HE_CKKS_KeyGenerator* 
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey(HE_CKKS_KeyGenerator* kg,
                                                          HE_CKKS_MultipartyRelinKey* mp_rlk,
-                                                         const HE_CKKS_SecretKey* sk,
+                                                         HE_CKKS_SecretKey* sk,
                                                          const C_ExecutionOptions* options);
 
 /**
@@ -135,8 +134,8 @@ int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey(HE_CKKS_KeyGenerator* k
  * @return 0 on success, non-zero on failure.
  */
 int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey(HE_CKKS_KeyGenerator* kg,
-                                                          HE_CKKS_GaloisKey* gk, // Output is a standard GaloisKey
-                                                          const HE_CKKS_SecretKey* sk,
+                                                          HE_CKKS_MultipartyGaloisKey* key_out_c,
+                                                          HE_CKKS_SecretKey* sk,
                                                           const C_ExecutionOptions* options);
 
 // --- Multiparty Key Aggregation ---
@@ -166,6 +165,7 @@ int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyPublicKey(HE_CKKS_KeyGenerator*
  * @return 0 on success, non-zero on failure.
  */
 int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyRelinKey(HE_CKKS_KeyGenerator* kg,
+                                                          HE_CKKS_SecretKey* sk_c,
                                                           const HE_CKKS_MultipartyRelinKey* const* relin_keys_array,
                                                           size_t num_relin_keys,
                                                           HE_CKKS_RelinKey* aggregated_rlk,

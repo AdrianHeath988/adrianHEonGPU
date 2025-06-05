@@ -1,4 +1,5 @@
 #include "keygenerator_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 
 #include "ckks/context.cuh"
@@ -16,16 +17,17 @@
 
 // Define the opaque struct
 typedef struct HE_CKKS_KeyGenerator_s HE_CKKS_KeyGenerator;
+
 // Helper to safely access underlying C++ pointers from opaque C pointers
 static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context_kg(HE_CKKS_Context* context) {
     if (!context || !context->cpp_context) return nullptr;
     return context->cpp_context;
 }
-static heongpu::SecretKey<heongpu::Scheme::CKKS>* get_cpp_secretkey(HE_CKKS_SecretKey* sk) {
+static heongpu::Secretkey<heongpu::Scheme::CKKS>* get_cpp_secretkey(HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return nullptr;
     return sk->cpp_secretkey;
 }
-static const heongpu::SecretKey<heongpu::Scheme::CKKS>* get_const_cpp_secretkey(const HE_CKKS_SecretKey* sk) {
+static const heongpu::Secretkey<heongpu::Scheme::CKKS>* get_const_cpp_secretkey(const HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return nullptr;
     return sk->cpp_secretkey;
 }
@@ -103,74 +105,162 @@ void HEonGPU_CKKS_KeyGenerator_Delete(HE_CKKS_KeyGenerator* kg) {
 }
 
 // --- Seed Configuration ---
-void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, const C_RNGSeed_Const_Data* seed_c) {
+void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, int seed_c) {
     if (!kg || !kg->cpp_keygen || !seed_c) {
         std::cerr << "KeyGenerator_SetSeed: Invalid argument(s).\n"; return;
     }
     try {
-        heongpu::RNGSeed cpp_seed;
-        if (seed_c->key_data && seed_c->key_len > 0) {
-            cpp_seed.key_.assign(seed_c->key_data, seed_c->key_data + seed_c->key_len);
-        }
-        if (seed_c->nonce_data && seed_c->nonce_len > 0) {
-            cpp_seed.nonce_.assign(seed_c->nonce_data, seed_c->nonce_data + seed_c->nonce_len);
-        }
-        if (seed_c->pstring_data && seed_c->pstring_len > 0) {
-            cpp_seed.personalization_string_.assign(seed_c->pstring_data, seed_c->pstring_data + seed_c->pstring_len);
-        }
-        kg->cpp_keygen->set_seed(cpp_seed);
+        
+        kg->cpp_keygen->set_seed(seed_c);
     } catch (const std::exception& e) { std::cerr << "KeyGenerator_SetSeed Error: " << e.what() << std::endl; }
       catch (...) { std::cerr << "KeyGenerator_SetSeed Unknown Error" << std::endl; }
 }
 
 // --- Standard Key Generation ---
-#define WRAP_STD_KEYGEN_FUNC(FuncName, CppKeyType, CKeyType, GetCppKeyFunc) \
-int FuncName(HE_CKKS_KeyGenerator* kg, CKeyType* key_out_c, const HE_CKKS_SecretKey* sk_c, const C_ExecutionOptions* options_c) { \
-    if (!kg || !kg->cpp_keygen || !key_out_c || !GetCppKeyFunc(key_out_c) || !get_const_cpp_secretkey(sk_c)) { \
-        std::cerr << #FuncName " Error: Invalid argument(s).\n"; return -1; \
-    } \
-    try { \
-        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c); \
-        kg->cpp_keygen->CppKeyType(*(GetCppKeyFunc(key_out_c)), *(get_const_cpp_secretkey(sk_c)), cpp_options); \
-        return 0; \
-    } catch (const std::exception& e) { std::cerr << #FuncName " Error: " << e.what() << std::endl; return -2; } \
-      catch (...) { std::cerr << #FuncName " Unknown Error" << std::endl; return -2; } \
-}
 
-int HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(HE_CKKS_KeyGenerator* kg, HE_CKKS_SecretKey* sk_c, int hamming_weight, const C_ExecutionOptions* options_c) {
+int HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(HE_CKKS_KeyGenerator* kg, HE_CKKS_SecretKey* sk_c, const C_ExecutionOptions* options_c) {
     if (!kg || !kg->cpp_keygen || !sk_c || !get_cpp_secretkey(sk_c)) {
         std::cerr << "GenerateSecretKey Error: Invalid argument(s).\n"; return -1;
     }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
-        kg->cpp_keygen->generate_secret_key(*(get_cpp_secretkey(sk_c)), hamming_weight, cpp_options);
+        kg->cpp_keygen->generate_secret_key(*(get_cpp_secretkey(sk_c)), cpp_options);
         return 0;
     } catch (const std::exception& e) { std::cerr << "GenerateSecretKey Error: " << e.what() << std::endl; return -2; }
       catch (...) { std::cerr << "GenerateSecretKey Unknown Error" << std::endl; return -2; }
 }
 
-WRAP_STD_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GeneratePublicKey, generate_public_key, HE_CKKS_PublicKey, get_cpp_publickey)
-WRAP_STD_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GenerateRelinKey, generate_relinkey, HE_CKKS_RelinKey, get_cpp_relinkey)
-WRAP_STD_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey, generate_galoiskey, HE_CKKS_GaloisKey, get_cpp_galoiskey)
+int HEonGPU_CKKS_KeyGenerator_GeneratePublicKey(HE_CKKS_KeyGenerator* kg,
+                                                HE_CKKS_PublicKey* key_out_c,
+                                                HE_CKKS_SecretKey* sk_c,
+                                                const C_ExecutionOptions* options_c) {
+    // Ensure you have non-const helpers like get_cpp_publickey and get_cpp_secretkey defined
+    if (!kg || !kg->cpp_keygen || !key_out_c || !get_cpp_publickey(key_out_c) || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GeneratePublicKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        // The call uses a non-const pointer for sk_c, which becomes a non-const reference
+        kg->cpp_keygen->generate_public_key(*(get_cpp_publickey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GeneratePublicKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GeneratePublicKey" " Unknown Error" << std::endl;
+        return -2;
+    }
+}
+
+int HEonGPU_CKKS_KeyGenerator_GenerateRelinKey(HE_CKKS_KeyGenerator* kg,
+                                               HE_CKKS_RelinKey* key_out_c,
+                                               HE_CKKS_SecretKey* sk_c,
+                                               const C_ExecutionOptions* options_c) {
+    if (!kg || !kg->cpp_keygen || !key_out_c || !get_cpp_relinkey(key_out_c) || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateRelinKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        kg->cpp_keygen->generate_relin_key(*(get_cpp_relinkey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateRelinKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateRelinKey" " Unknown Error" << std::endl;
+        return -2;
+    }
+}
+
+int HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey(HE_CKKS_KeyGenerator* kg,
+                                                HE_CKKS_GaloisKey* key_out_c,
+                                                HE_CKKS_SecretKey* sk_c,
+                                                const C_ExecutionOptions* options_c) {
+    if (!kg || !kg->cpp_keygen || !key_out_c || !get_cpp_galoiskey(key_out_c) || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        kg->cpp_keygen->generate_galois_key(*(get_cpp_galoiskey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateGaloisKey" " Unknown Error" << std::endl;
+        return -2;
+    }
+}
 
 
 // --- Multiparty Key Generation ---
-#define WRAP_MP_KEYGEN_FUNC(FuncName, CppFuncName, CppKeyType, CKeyType, GetCppKeyFunc) \
-int FuncName(HE_CKKS_KeyGenerator* kg, CKeyType* key_out_c, const HE_CKKS_SecretKey* sk_c, const C_ExecutionOptions* options_c) { \
-    if (!kg || !kg->cpp_keygen || !key_out_c || !GetCppKeyFunc(key_out_c) || !get_const_cpp_secretkey(sk_c)) { \
-        std::cerr << #FuncName " Error: Invalid argument(s).\n"; return -1; \
-    } \
-    try { \
-        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c); \
-        kg->cpp_keygen->CppFuncName(*(GetCppKeyFunc(key_out_c)), *(get_const_cpp_secretkey(sk_c)), cpp_options); \
-        return 0; \
-    } catch (const std::exception& e) { std::cerr << #FuncName " Error: " << e.what() << std::endl; return -2; } \
-      catch (...) { std::cerr << #FuncName " Unknown Error" << std::endl; return -2; } \
+int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey(HE_CKKS_KeyGenerator* kg,
+                                                          HE_CKKS_MultipartyPublicKey* key_out_c,
+                                                          HE_CKKS_SecretKey* sk_c,
+                                                          const C_ExecutionOptions* options_c) {
+    if (!kg || !kg->cpp_keygen || !key_out_c || !get_cpp_mp_publickey(key_out_c) || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        kg->cpp_keygen->generate_multi_party_public_key_piece(*(get_cpp_mp_publickey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey" " Unknown Error" << std::endl;
+        return -2;
+    }
 }
 
-WRAP_MP_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GenerateMultipartyPublicKey, generate_multiparty_public_key, heongpu::MultipartyPublickey<heongpu::Scheme::CKKS>, HE_CKKS_MultipartyPublicKey, get_cpp_mp_publickey)
-WRAP_MP_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey, generate_multiparty_relinkey, heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>, HE_CKKS_MultipartyRelinKey, get_cpp_mp_relinkey)
-WRAP_MP_KEYGEN_FUNC(HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey, generate_multiparty_galoiskey, heongpu::Galoiskey<heongpu::Scheme::CKKS>, HE_CKKS_GaloisKey, get_cpp_galoiskey) /* C++ uses Galoiskey here */
+int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey(HE_CKKS_KeyGenerator* kg,
+                                                         HE_CKKS_MultipartyRelinKey* key_out_c,
+                                                         HE_CKKS_SecretKey* sk_c,
+                                                         const C_ExecutionOptions* options_c) {
+    if (!kg || !kg->cpp_keygen || !key_out_c || !get_cpp_mp_relinkey(key_out_c) || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        kg->cpp_keygen->generate_multi_party_relin_key_piece(*(get_cpp_mp_relinkey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyRelinKey" " Unknown Error" << std::endl;
+        return -2;
+    }
+}
+
+
+int HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey(HE_CKKS_KeyGenerator* kg,
+                                                          HE_CKKS_MultipartyGaloisKey* key_out_c,
+                                                          HE_CKKS_SecretKey* sk_c,
+                                                          const C_ExecutionOptions* options_c) {
+    if (!kg || !kg->cpp_keygen || !key_out_c || !key_out_c->cpp_mp_galoiskey || !get_cpp_secretkey(sk_c)) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey" " Error: Invalid argument(s).\n";
+        return -1;
+    }
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+        kg->cpp_keygen->generate_multi_party_galios_key_piece(*(key_out_c->cpp_mp_galoiskey), *(get_cpp_secretkey(sk_c)), cpp_options);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey" " Error: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_KeyGenerator_GenerateMultipartyGaloisKey" " Unknown Error" << std::endl;
+        return -2;
+    }
+}
+ /* C++ uses Galoiskey here */
 
 
 // --- Multiparty Key Aggregation ---
@@ -187,49 +277,49 @@ int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyPublicKey(HE_CKKS_KeyGenerator*
             cpp_pk_vec.push_back(*cpp_mp_pk); // Makes a copy, C++ method takes vector of objects
         }
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
-        kg->cpp_keygen->aggregate_multiparty_public_key(cpp_pk_vec, *(get_cpp_publickey(aggregated_pk_c)), cpp_options);
+        kg->cpp_keygen->generate_multi_party_public_key(cpp_pk_vec, *(get_cpp_publickey(aggregated_pk_c)), cpp_options);
         return 0;
     } catch (const std::exception& e) { std::cerr << "AggregateMultipartyPublicKey Error: " << e.what() << std::endl; return -2; }
       catch (...) { std::cerr << "AggregateMultipartyPublicKey Unknown Error" << std::endl; return -2; }
 }
 
+//If necessary, will fix later
+// int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyRelinKey(HE_CKKS_KeyGenerator* kg, HE_CKKS_SecretKey* sk_c, const HE_CKKS_MultipartyRelinKey* const* relin_keys_array_c, size_t num_relin_keys, HE_CKKS_RelinKey* aggregated_rlk_c, const C_ExecutionOptions* options_c) {
+//     if (!kg || !kg->cpp_keygen || (num_relin_keys > 0 && !relin_keys_array_c) || !aggregated_rlk_c || !get_cpp_relinkey(aggregated_rlk_c)) {
+//          std::cerr << "AggregateMultipartyRelinKey Error: Invalid argument(s).\n"; return -1;
+//     }
+//     try {
+//         std::vector<heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>> cpp_rlk_vec;
+//         cpp_rlk_vec.reserve(num_relin_keys);
+//         for (size_t i = 0; i < num_relin_keys; ++i) {
+//              const heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>* cpp_mp_rlk = get_const_cpp_mp_relinkey(relin_keys_array_c[i]);
+//              if (!cpp_mp_rlk) { std::cerr << "AggregateMultipartyRelinKey Error: Null key in array at index " << i << std::endl; return -1; }
+//             cpp_rlk_vec.push_back(*cpp_mp_rlk);
+//         }
+//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+//         kg->cpp_keygen->generate_multi_party_relin_key(cpp_rlk_vec, *(get_cpp_relinkey(aggregated_rlk_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
+//         return 0;
+//     } catch (const std::exception& e) { std::cerr << "AggregateMultipartyRelinKey Error: " << e.what() << std::endl; return -2; }
+//       catch (...) { std::cerr << "AggregateMultipartyRelinKey Unknown Error" << std::endl; return -2; }
+// }
 
-int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyRelinKey(HE_CKKS_KeyGenerator* kg, const HE_CKKS_MultipartyRelinKey* const* relin_keys_array_c, size_t num_relin_keys, HE_CKKS_RelinKey* aggregated_rlk_c, const C_ExecutionOptions* options_c) {
-    if (!kg || !kg->cpp_keygen || (num_relin_keys > 0 && !relin_keys_array_c) || !aggregated_rlk_c || !get_cpp_relinkey(aggregated_rlk_c)) {
-         std::cerr << "AggregateMultipartyRelinKey Error: Invalid argument(s).\n"; return -1;
-    }
-    try {
-        std::vector<heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>> cpp_rlk_vec;
-        cpp_rlk_vec.reserve(num_relin_keys);
-        for (size_t i = 0; i < num_relin_keys; ++i) {
-             const heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>* cpp_mp_rlk = get_const_cpp_mp_relinkey(relin_keys_array_c[i]);
-             if (!cpp_mp_rlk) { std::cerr << "AggregateMultipartyRelinKey Error: Null key in array at index " << i << std::endl; return -1; }
-            cpp_rlk_vec.push_back(*cpp_mp_rlk);
-        }
-        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
-        kg->cpp_keygen->aggregate_multiparty_relinkey(cpp_rlk_vec, *(get_cpp_relinkey(aggregated_rlk_c)), cpp_options);
-        return 0;
-    } catch (const std::exception& e) { std::cerr << "AggregateMultipartyRelinKey Error: " << e.what() << std::endl; return -2; }
-      catch (...) { std::cerr << "AggregateMultipartyRelinKey Unknown Error" << std::endl; return -2; }
-}
-
-int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyGaloisKey(HE_CKKS_KeyGenerator* kg, const HE_CKKS_GaloisKey* const* galois_keys_array_c, size_t num_galois_keys, HE_CKKS_GaloisKey* aggregated_gk_c, const C_ExecutionOptions* options_c) {
-    if (!kg || !kg->cpp_keygen || (num_galois_keys > 0 && !galois_keys_array_c) || !aggregated_gk_c || !get_cpp_galoiskey(aggregated_gk_c) ) {
-        std::cerr << "AggregateMultipartyGaloisKey Error: Invalid argument(s).\n"; return -1;
-    }
-    try {
-        std::vector<heongpu::Galoiskey<heongpu::Scheme::CKKS>> cpp_gk_vec; // C++ takes vector of Galoiskey
-        cpp_gk_vec.reserve(num_galois_keys);
-        for (size_t i = 0; i < num_galois_keys; ++i) {
-            const heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_gk = get_const_cpp_galoiskey(galois_keys_array_c[i]);
-            if (!cpp_gk) { std::cerr << "AggregateMultipartyGaloisKey Error: Null key in array at index " << i << std::endl; return -1; }
-            cpp_gk_vec.push_back(*cpp_gk);
-        }
-        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
-        kg->cpp_keygen->aggregate_multiparty_galoiskey(cpp_gk_vec, *(get_cpp_galoiskey(aggregated_gk_c)), cpp_options);
-        return 0;
-    } catch (const std::exception& e) { std::cerr << "AggregateMultipartyGaloisKey Error: " << e.what() << std::endl; return -2; }
-      catch (...) { std::cerr << "AggregateMultipartyGaloisKey Unknown Error" << std::endl; return -2; }
-}
+// int HEonGPU_CKKS_KeyGenerator_AggregateMultipartyGaloisKey(HE_CKKS_KeyGenerator* kg, const HE_CKKS_GaloisKey* const* galois_keys_array_c, size_t num_galois_keys, HE_CKKS_GaloisKey* aggregated_gk_c, const C_ExecutionOptions* options_c) {
+//     if (!kg || !kg->cpp_keygen || (num_galois_keys > 0 && !galois_keys_array_c) || !aggregated_gk_c || !get_cpp_galoiskey(aggregated_gk_c) ) {
+//         std::cerr << "AggregateMultipartyGaloisKey Error: Invalid argument(s).\n"; return -1;
+//     }
+//     try {
+//         std::vector<heongpu::Galoiskey<heongpu::Scheme::CKKS>> cpp_gk_vec; // C++ takes vector of Galoiskey
+//         cpp_gk_vec.reserve(num_galois_keys);
+//         for (size_t i = 0; i < num_galois_keys; ++i) {
+//             const heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_gk = get_const_cpp_galoiskey(galois_keys_array_c[i]);
+//             if (!cpp_gk) { std::cerr << "AggregateMultipartyGaloisKey Error: Null key in array at index " << i << std::endl; return -1; }
+//             cpp_gk_vec.push_back(*cpp_gk);
+//         }
+//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
+//         kg->cpp_keygen->aggregate_multiparty_galoiskey(cpp_gk_vec, *(get_cpp_galoiskey(aggregated_gk_c)), cpp_options);
+//         return 0;
+//     } catch (const std::exception& e) { std::cerr << "AggregateMultipartyGaloisKey Error: " << e.what() << std::endl; return -2; }
+//       catch (...) { std::cerr << "AggregateMultipartyGaloisKey Unknown Error" << std::endl; return -2; }
+// }
 
 } // extern "C"

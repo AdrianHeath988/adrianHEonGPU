@@ -1,4 +1,5 @@
 #include "plaintext_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 #include "ckks/context.cuh"
 #include "ckks/plaintext.cuh"
@@ -249,15 +250,7 @@ HE_CKKS_Plaintext* HEonGPU_CKKS_Plaintext_Load(HE_CKKS_Context* context,
 
 // --- CKKS Plaintext Getters ---
 
-C_scheme_type HEonGPU_CKKS_Plaintext_GetScheme(HE_CKKS_Plaintext* plaintext) {
-    if (!plaintext || !plaintext->cpp_plaintext) {
-        std::cerr << "Error: Invalid plaintext pointer in GetScheme." << std::endl;
-        return static_cast<C_scheme_type>(-1); // Error
-    }
-    try {
-        return map_cpp_to_c_scheme_type(plaintext->cpp_plaintext->get_scheme());
-    } catch (...) { return static_cast<C_scheme_type>(-1); }
-}
+
 
 int HEonGPU_CKKS_Plaintext_GetPlainSize(HE_CKKS_Plaintext* plaintext) {
     if (!plaintext || !plaintext->cpp_plaintext) {
@@ -265,7 +258,7 @@ int HEonGPU_CKKS_Plaintext_GetPlainSize(HE_CKKS_Plaintext* plaintext) {
         return 0;
     }
     try {
-        return plaintext->cpp_plaintext->plain_size();
+        return plaintext->cpp_plaintext->size();
     } catch (...) { return 0; }
 }
 
@@ -285,7 +278,7 @@ double HEonGPU_CKKS_Plaintext_GetScale(HE_CKKS_Plaintext* plaintext) {
         return -1.0; // Error indicator
     }
     try {
-        return plaintext->cpp_plaintext->get_scale();
+        return plaintext->cpp_plaintext->scale();
     } catch (...) { return -1.0; }
 }
 
@@ -295,41 +288,28 @@ bool HEonGPU_CKKS_Plaintext_IsInNttDomain(HE_CKKS_Plaintext* plaintext) {
         return false;
     }
     try {
-        return plaintext->cpp_plaintext->is_in_ntt_domain();
+        return plaintext->cpp_plaintext->in_ntt_domain();
     } catch (...) { return false; }
 }
 
-C_storage_type HEonGPU_CKKS_Plaintext_GetStorageType(HE_CKKS_Plaintext* plaintext) {
+bool HEonGPU_CKKS_Plaintext_IsOnDevice(HE_CKKS_Plaintext* plaintext) {
     if (!plaintext || !plaintext->cpp_plaintext) {
         std::cerr << "Error: Invalid plaintext pointer in GetStorageType." << std::endl;
         return C_STORAGE_TYPE_INVALID; 
     }
     try {
-        return map_cpp_to_c_storage_type(plaintext->cpp_plaintext->get_storage_type());
+        return (plaintext->cpp_plaintext->is_on_device());
     } catch (...) { return C_STORAGE_TYPE_INVALID; }
 }
 
-size_t HEonGPU_CKKS_Plaintext_GetData(HE_CKKS_Plaintext* plaintext,
-                                      uint64_t* data_buffer, // heongpu::Data64 is uint64_t
-                                      size_t buffer_elements,
-                                      C_cudaStream_t stream) {
-    if (!plaintext || !plaintext->cpp_plaintext || (!data_buffer && buffer_elements > 0)) {
+uint64_t* HEonGPU_CKKS_Plaintext_GetData(HE_CKKS_Plaintext* plaintext) {
+    if (!plaintext || !plaintext->cpp_plaintext) {
         std::cerr << "Error: Invalid arguments in Plaintext GetData." << std::endl;
         return 0;
     }
     try {
-        heongpu::HostVector<heongpu::Data64> temp_host_vector;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        
-        plaintext->cpp_plaintext->get_data(temp_host_vector, cpp_stream);
+        return reinterpret_cast<uint64_t*>(plaintext->cpp_plaintext->data());
 
-        size_t elements_in_pt = temp_host_vector.size();
-        size_t elements_to_copy = std::min(buffer_elements, elements_in_pt);
-
-        if (elements_to_copy > 0 && data_buffer) {
-            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(heongpu::Data64));
-        }
-        return elements_to_copy;
     } catch (const std::exception& e) {
         std::cerr << "HEonGPU_CKKS_Plaintext_GetData failed with C++ exception: " << e.what() << std::endl;
         return 0;
@@ -339,35 +319,6 @@ size_t HEonGPU_CKKS_Plaintext_GetData(HE_CKKS_Plaintext* plaintext,
     }
 }
 
-// --- CKKS Plaintext Setters ---
-int HEonGPU_CKKS_Plaintext_SetData(HE_CKKS_Plaintext* plaintext,
-                                   const uint64_t* data_buffer, // heongpu::Data64 is uint64_t
-                                   size_t num_elements,
-                                   C_cudaStream_t stream) {
-    if (!plaintext || !plaintext->cpp_plaintext || (!data_buffer && num_elements > 0)) {
-        std::cerr << "Error: Invalid arguments in Plaintext SetData." << std::endl;
-        return -1; // Error
-    }
-    try {
-        // Create a HostVector from the C buffer.
-        // Note: This makes a copy. If Plaintext::set_data takes a const ref
-        // and potentially copies internally, this is fine. If it expects to take
-        // ownership or avoid a copy, the C++ API would need to reflect that.
-        heongpu::HostVector<heongpu::Data64> input_host_vector(num_elements);
-        if (num_elements > 0 && data_buffer) {
-            std::memcpy(input_host_vector.data(), data_buffer, num_elements * sizeof(heongpu::Data64));
-        }
-        
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        plaintext->cpp_plaintext->set_data(input_host_vector, cpp_stream);
-        return 0; // Success
-    } catch (const std::exception& e) {
-        std::cerr << "HEonGPU_CKKS_Plaintext_SetData failed with C++ exception: " << e.what() << std::endl;
-        return -2; // Error
-    } catch (...) {
-        std::cerr << "HEonGPU_CKKS_Plaintext_SetData failed due to an unknown C++ exception." << std::endl;
-        return -2; // Error
-    }
-}
+
 
 } // extern "C"

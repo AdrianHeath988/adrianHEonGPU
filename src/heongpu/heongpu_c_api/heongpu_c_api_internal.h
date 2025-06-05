@@ -12,6 +12,7 @@ namespace heongpu {
     template <::heongpu::Scheme S> class Relinkey;
     template <::heongpu::Scheme S> class MultipartyRelinkey;
     template <::heongpu::Scheme S> class Galoiskey;
+    template <::heongpu::Scheme S> class MultipartyGaloiskey;
     template <::heongpu::Scheme S> class Switchkey;
     template <::heongpu::Scheme S> class HEEncoder;
     template <::heongpu::Scheme S> class HEDecryptor;
@@ -56,6 +57,10 @@ struct HE_CKKS_MultipartyRelinKey_s {
 
 struct HE_CKKS_GaloisKey_s {
     heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_galoiskey;
+};
+
+struct HE_CKKS_MultipartyGaloisKey_s {
+    heongpu::MultipartyGaloiskey<heongpu::Scheme::CKKS>* cpp_mp_galoiskey;
 };
 
 struct HE_CKKS_Encoder_s {
