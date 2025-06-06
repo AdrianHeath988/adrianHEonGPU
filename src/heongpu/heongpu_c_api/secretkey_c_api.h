@@ -70,43 +70,10 @@ HE_CKKS_SecretKey* HEonGPU_CKKS_SecretKey_Load(HE_CKKS_Context* context,
                                                size_t len);
 
 // --- CKKS SecretKey Getters ---
-C_scheme_type HEonGPU_CKKS_SecretKey_GetScheme(HE_CKKS_SecretKey* sk);
 int HEonGPU_CKKS_SecretKey_GetRingSize(HE_CKKS_SecretKey* sk);
 int HEonGPU_CKKS_SecretKey_GetCoeffModulusCount(HE_CKKS_SecretKey* sk);
-int HEonGPU_CKKS_SecretKey_GetNPower(HE_CKKS_SecretKey* sk);
-int HEonGPU_CKKS_SecretKey_GetHammingWeight(HE_CKKS_SecretKey* sk);
-bool HEonGPU_CKKS_SecretKey_IsInNttDomain(HE_CKKS_SecretKey* sk);
-bool HEonGPU_CKKS_SecretKey_IsGenerated(HE_CKKS_SecretKey* sk);
-C_storage_type HEonGPU_CKKS_SecretKey_GetStorageType(HE_CKKS_SecretKey* sk);
-
-/**
- * @brief Copies the secret key's coefficient data to a user-provided host buffer.
- * Buffer must be large enough: ring_size * coeff_modulus_count elements.
- * @param sk Opaque pointer to the HE_CKKS_SecretKey.
- * @param data_buffer User-allocated buffer to copy the data into (as uint64_t).
- * @param buffer_elements The capacity of data_buffer in uint64_t elements.
- * @param stream CUDA stream for device-to-host copy if data is on device.
- * @return Number of uint64_t elements copied, or 0 on failure.
- */
-size_t HEonGPU_CKKS_SecretKey_GetData(HE_CKKS_SecretKey* sk,
-                                      uint64_t* data_buffer,
-                                      size_t buffer_elements,
-                                      C_cudaStream_t stream);
-
-// --- CKKS SecretKey Setters ---
-/**
- * @brief Sets the data of the secret key from a host buffer.
- * This is typically used after key generation or for loading raw key data.
- * @param sk Opaque pointer to the HE_CKKS_SecretKey.
- * @param data_buffer Buffer containing the secret key data (uint64_t elements).
- * @param num_elements Number of elements in data_buffer. Must match ring_size * coeff_modulus_count.
- * @param stream CUDA stream for host-to-device transfer if applicable.
- * @return 0 on success, non-zero on failure.
- */
-int HEonGPU_CKKS_SecretKey_SetData(HE_CKKS_SecretKey* sk,
-                                   const uint64_t* data_buffer,
-                                   size_t num_elements,
-                                   C_cudaStream_t stream);
+bool HEonGPU_CKKS_SecretKey_IsOnDevice(HE_CKKS_SecretKey* sk);
+uint64_t* HEonGPU_CKKS_SecretKey_GetData(HE_CKKS_SecretKey* sk);
 
 #ifdef __cplusplus
 } // extern "C"

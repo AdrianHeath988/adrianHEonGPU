@@ -1,4 +1,5 @@
 #include "secretkey_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 
 #include "ckks/context.cuh"
@@ -57,8 +58,8 @@ HE_CKKS_SecretKey* HEonGPU_CKKS_SecretKey_Create(HE_CKKS_Context* context) {
     }
     try {
         // Uses the constructor SecretKey(HEContext<Scheme::CKKS>& context);
-        heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_sk_obj =
-            new (std::nothrow) heongpu::SecretKey<heongpu::Scheme::CKKS>(*cpp_h_context);
+        heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_sk_obj =
+            new (std::nothrow) heongpu::Secretkey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_sk_obj) {
             std::cerr << "HEonGPU_CKKS_SecretKey_Create failed: C++ SecretKey allocation failed." << std::endl;
             return nullptr;
@@ -94,8 +95,8 @@ HE_CKKS_SecretKey* HEonGPU_CKKS_SecretKey_Clone(const HE_CKKS_SecretKey* other_s
         return nullptr;
     }
     try {
-        heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_cloned_sk =
-            new (std::nothrow) heongpu::SecretKey<heongpu::Scheme::CKKS>(*(other_sk->cpp_secretkey));
+        heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_cloned_sk =
+            new (std::nothrow) heongpu::Secretkey<heongpu::Scheme::CKKS>(*(other_sk->cpp_secretkey));
          if (!cpp_cloned_sk) {
             std::cerr << "HEonGPU_CKKS_SecretKey_Clone failed: C++ SecretKey (clone) allocation failed." << std::endl;
             return nullptr;
@@ -189,10 +190,10 @@ HE_CKKS_SecretKey* HEonGPU_CKKS_SecretKey_Load(HE_CKKS_Context* context,
     }
 
     HE_CKKS_SecretKey* c_api_sk = nullptr;
-    heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_sk = nullptr;
+    heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_sk = nullptr;
     try {
         // Create a SecretKey object using the context, then load into it.
-        cpp_sk = new (std::nothrow) heongpu::SecretKey<heongpu::Scheme::CKKS>(*cpp_h_context);
+        cpp_sk = new (std::nothrow) heongpu::Secretkey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_sk) {
              std::cerr << "HEonGPU_CKKS_SecretKey_Load failed: C++ SecretKey allocation failed." << std::endl;
             return nullptr;
@@ -227,10 +228,7 @@ HE_CKKS_SecretKey* HEonGPU_CKKS_SecretKey_Load(HE_CKKS_Context* context,
 }
 
 // --- CKKS SecretKey Getters ---
-C_scheme_type HEonGPU_CKKS_SecretKey_GetScheme(HE_CKKS_SecretKey* sk) {
-    if (!sk || !sk->cpp_secretkey) return static_cast<C_scheme_type>(-1);
-    try { return map_cpp_to_c_scheme_type_sk(sk->cpp_secretkey->get_scheme()); } catch (...) { return static_cast<C_scheme_type>(-1); }
-}
+
 
 int HEonGPU_CKKS_SecretKey_GetRingSize(HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return 0;
@@ -242,85 +240,26 @@ int HEonGPU_CKKS_SecretKey_GetCoeffModulusCount(HE_CKKS_SecretKey* sk) {
     try { return sk->cpp_secretkey->coeff_modulus_count(); } catch (...) { return 0; }
 }
 
-int HEonGPU_CKKS_SecretKey_GetNPower(HE_CKKS_SecretKey* sk) {
-    if (!sk || !sk->cpp_secretkey) return 0;
-    try { return sk->cpp_secretkey->n_power(); } catch (...) { return 0; }
-}
 
-int HEonGPU_CKKS_SecretKey_GetHammingWeight(HE_CKKS_SecretKey* sk) {
-    if (!sk || !sk->cpp_secretkey) return 0; // Or -1 as HW can be 0.
-    try { return sk->cpp_secretkey->hamming_weight(); } catch (...) { return -1; }
-}
-
-bool HEonGPU_CKKS_SecretKey_IsInNttDomain(HE_CKKS_SecretKey* sk) {
+bool HEonGPU_CKKS_SecretKey_IsOnDevice(HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return false;
-    try { return sk->cpp_secretkey->is_in_ntt_domain(); } catch (...) { return false; }
+    try { return (sk->cpp_secretkey->is_on_device()); } catch (...) { return false; }
 }
 
-bool HEonGPU_CKKS_SecretKey_IsGenerated(HE_CKKS_SecretKey* sk) {
-    if (!sk || !sk->cpp_secretkey) return false;
-    try { return sk->cpp_secretkey->is_generated(); } catch (...) { return false; }
-}
-
-C_storage_type HEonGPU_CKKS_SecretKey_GetStorageType(HE_CKKS_SecretKey* sk) {
-    if (!sk || !sk->cpp_secretkey) return C_STORAGE_TYPE_INVALID;
-    try { return map_cpp_to_c_storage_type_sk(sk->cpp_secretkey->get_storage_type()); } catch (...) { return C_STORAGE_TYPE_INVALID; }
-}
-
-size_t HEonGPU_CKKS_SecretKey_GetData(HE_CKKS_SecretKey* sk,
-                                      uint64_t* data_buffer,
-                                      size_t buffer_elements,
-                                      C_cudaStream_t stream) {
-    if (!sk || !sk->cpp_secretkey || (!data_buffer && buffer_elements > 0)) {
+uint64_t* HEonGPU_CKKS_SecretKey_GetData(HE_CKKS_SecretKey* sk) {
+    if (!sk || !sk->cpp_secretkey) {
         std::cerr << "Error: Invalid arguments in SecretKey GetData." << std::endl;
         return 0;
     }
     try {
-        heongpu::HostVector<heongpu::Data64> temp_host_vector;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
+        return reinterpret_cast<uint64_t*>(sk->cpp_secretkey->data());
         
-        sk->cpp_secretkey->get_data(temp_host_vector, cpp_stream);
-
-        size_t elements_in_sk = temp_host_vector.size();
-        size_t elements_to_copy = std::min(buffer_elements, elements_in_sk);
-
-        if (elements_to_copy > 0 && data_buffer) {
-            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(heongpu::Data64));
-        }
-        return elements_to_copy;
     } catch (const std::exception& e) {
         std::cerr << "HEonGPU_CKKS_SecretKey_GetData failed with C++ exception: " << e.what() << std::endl;
         return 0;
     } catch (...) {
         std::cerr << "HEonGPU_CKKS_SecretKey_GetData failed due to an unknown C++ exception." << std::endl;
         return 0;
-    }
-}
-
-// --- CKKS SecretKey Setters ---
-int HEonGPU_CKKS_SecretKey_SetData(HE_CKKS_SecretKey* sk,
-                                   const uint64_t* data_buffer, // heongpu::Data64 is uint64_t
-                                   size_t num_elements,
-                                   C_cudaStream_t stream) {
-    if (!sk || !sk->cpp_secretkey || (!data_buffer && num_elements > 0)) {
-        std::cerr << "Error: Invalid arguments in SecretKey SetData." << std::endl;
-        return -1; // Error
-    }
-    try {
-        heongpu::HostVector<heongpu::Data64> input_host_vector(num_elements);
-        if (num_elements > 0 && data_buffer) {
-             std::memcpy(input_host_vector.data(), data_buffer, num_elements * sizeof(heongpu::Data64));
-        }
-        
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        sk->cpp_secretkey->set_data(input_host_vector, cpp_stream);
-        return 0; // Success
-    } catch (const std::exception& e) {
-        std::cerr << "HEonGPU_CKKS_SecretKey_SetData failed with C++ exception: " << e.what() << std::endl;
-        return -2; // Error
-    } catch (...) {
-        std::cerr << "HEonGPU_CKKS_SecretKey_SetData failed due to an unknown C++ exception." << std::endl;
-        return -2; // Error
     }
 }
 

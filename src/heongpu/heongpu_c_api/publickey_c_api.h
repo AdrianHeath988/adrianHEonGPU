@@ -26,16 +26,13 @@ int HEonGPU_CKKS_PublicKey_Save(HE_CKKS_PublicKey* pk, unsigned char** out_bytes
 HE_CKKS_PublicKey* HEonGPU_CKKS_PublicKey_Load(HE_CKKS_Context* context, const unsigned char* bytes, size_t len);
 
 // Getters for PublicKey
-C_scheme_type HEonGPU_CKKS_PublicKey_GetScheme(HE_CKKS_PublicKey* pk);
+
 int HEonGPU_CKKS_PublicKey_GetRingSize(HE_CKKS_PublicKey* pk);
 int HEonGPU_CKKS_PublicKey_GetCoeffModulusCount(HE_CKKS_PublicKey* pk);
-bool HEonGPU_CKKS_PublicKey_IsInNttDomain(HE_CKKS_PublicKey* pk);
-bool HEonGPU_CKKS_PublicKey_IsGenerated(HE_CKKS_PublicKey* pk);
-C_storage_type HEonGPU_CKKS_PublicKey_GetStorageType(HE_CKKS_PublicKey* pk);
-size_t HEonGPU_CKKS_PublicKey_GetData(HE_CKKS_PublicKey* pk, uint64_t* data_buffer, size_t buffer_elements, C_cudaStream_t stream);
 
-// Setter for PublicKey
-int HEonGPU_CKKS_PublicKey_SetData(HE_CKKS_PublicKey* pk, const uint64_t* data_buffer, size_t num_elements, C_cudaStream_t stream);
+bool HEonGPU_CKKS_PublicKey_IsOnDevice(HE_CKKS_PublicKey* pk);
+uint64_t* HEonGPU_CKKS_PublicKey_GetData(HE_CKKS_PublicKey* pk);
+
 
 // --- CKKS MultipartyPublicKey Functions ---
 
@@ -47,18 +44,6 @@ int HEonGPU_CKKS_MultipartyPublicKey_Assign_Copy(HE_CKKS_MultipartyPublicKey* de
 int HEonGPU_CKKS_MultipartyPublicKey_Save(HE_CKKS_MultipartyPublicKey* mp_pk, unsigned char** out_bytes, size_t* out_len);
 HE_CKKS_MultipartyPublicKey* HEonGPU_CKKS_MultipartyPublicKey_Load(HE_CKKS_Context* context, const unsigned char* bytes, size_t len, const C_RNGSeed_Const_Data* seed_for_reconstruction); // Seed might be part of serialized data or needed contextually
 
-// Getters for MultipartyPublickey (includes inherited ones, re-wrapped for type safety)
-C_scheme_type HEonGPU_CKKS_MultipartyPublicKey_GetScheme(HE_CKKS_MultipartyPublicKey* mp_pk);
-int HEonGPU_CKKS_MultipartyPublicKey_GetRingSize(HE_CKKS_MultipartyPublicKey* mp_pk);
-int HEonGPU_CKKS_MultipartyPublicKey_GetCoeffModulusCount(HE_CKKS_MultipartyPublicKey* mp_pk);
-bool HEonGPU_CKKS_MultipartyPublicKey_IsInNttDomain(HE_CKKS_MultipartyPublicKey* mp_pk);
-bool HEonGPU_CKKS_MultipartyPublicKey_IsGenerated(HE_CKKS_MultipartyPublicKey* mp_pk);
-C_storage_type HEonGPU_CKKS_MultipartyPublicKey_GetStorageType(HE_CKKS_MultipartyPublicKey* mp_pk);
-size_t HEonGPU_CKKS_MultipartyPublicKey_GetData(HE_CKKS_MultipartyPublicKey* mp_pk, uint64_t* data_buffer, size_t buffer_elements, C_cudaStream_t stream);
-int HEonGPU_CKKS_MultipartyPublicKey_GetSeed(HE_CKKS_MultipartyPublicKey* mp_pk, C_RNGSeed_Data* out_seed_data); // Populates out_seed_data
-
-// Setter for MultipartyPublickey
-int HEonGPU_CKKS_MultipartyPublicKey_SetData(HE_CKKS_MultipartyPublicKey* mp_pk, const uint64_t* data_buffer, size_t num_elements, C_cudaStream_t stream);
 
 
 #ifdef __cplusplus

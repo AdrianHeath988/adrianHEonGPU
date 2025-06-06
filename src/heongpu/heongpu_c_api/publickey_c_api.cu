@@ -1,4 +1,5 @@
 #include "publickey_c_api.h"
+#include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
 
 #include "ckks/context.cuh"
@@ -167,10 +168,6 @@ HE_CKKS_PublicKey* HEonGPU_CKKS_PublicKey_Load(HE_CKKS_Context* context, const u
 }
 
 // Getters for PublicKey
-C_scheme_type HEonGPU_CKKS_PublicKey_GetScheme(HE_CKKS_PublicKey* pk) {
-    if (!pk || !pk->cpp_publickey) return static_cast<C_scheme_type>(-1);
-    try { return map_cpp_to_c_scheme_type_pk(pk->cpp_publickey->get_scheme()); } catch (...) { return static_cast<C_scheme_type>(-1); }
-}
 int HEonGPU_CKKS_PublicKey_GetRingSize(HE_CKKS_PublicKey* pk) {
     if (!pk || !pk->cpp_publickey) return 0;
     try { return pk->cpp_publickey->ring_size(); } catch (...) { return 0; }
@@ -179,46 +176,21 @@ int HEonGPU_CKKS_PublicKey_GetCoeffModulusCount(HE_CKKS_PublicKey* pk) {
     if (!pk || !pk->cpp_publickey) return 0;
     try { return pk->cpp_publickey->coeff_modulus_count(); } catch (...) { return 0; }
 }
-bool HEonGPU_CKKS_PublicKey_IsInNttDomain(HE_CKKS_PublicKey* pk) {
+
+bool HEonGPU_CKKS_PublicKey_IsOnDevice(HE_CKKS_PublicKey* pk) {
     if (!pk || !pk->cpp_publickey) return false;
-    try { return pk->cpp_publickey->is_in_ntt_domain(); } catch (...) { return false; }
-}
-bool HEonGPU_CKKS_PublicKey_IsGenerated(HE_CKKS_PublicKey* pk) {
-    if (!pk || !pk->cpp_publickey) return false;
-    try { return pk->cpp_publickey->is_generated(); } catch (...) { return false; }
-}
-C_storage_type HEonGPU_CKKS_PublicKey_GetStorageType(HE_CKKS_PublicKey* pk) {
-    if (!pk || !pk->cpp_publickey) return C_STORAGE_TYPE_INVALID;
-    try { return map_cpp_to_c_storage_type_pk(pk->cpp_publickey->get_storage_type()); } catch (...) { return C_STORAGE_TYPE_INVALID; }
+    try { return (pk->cpp_publickey->is_on_device()); } catch (...) { return false; }
 }
 
-size_t HEonGPU_CKKS_PublicKey_GetData(HE_CKKS_PublicKey* pk, uint64_t* data_buffer, size_t buffer_elements, C_cudaStream_t stream) {
-    if (!pk || !pk->cpp_publickey || (!data_buffer && buffer_elements > 0)) return 0;
+uint64_t* HEonGPU_CKKS_PublicKey_GetData(HE_CKKS_PublicKey* pk) {
+    if (!pk || !pk->cpp_publickey) return 0;
     try {
-        heongpu::HostVector<heongpu::Data64> temp_host_vector;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        pk->cpp_publickey->get_data(temp_host_vector, cpp_stream);
-        size_t elements_to_copy = std::min(buffer_elements, temp_host_vector.size());
-        if (elements_to_copy > 0 && data_buffer) {
-            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(heongpu::Data64));
-        }
-        return elements_to_copy;
+        
+        return reinterpret_cast<uint64_t*>(pk->cpp_publickey->data());
     } catch (...) { return 0; }
 }
 
 // Setter for PublicKey
-int HEonGPU_CKKS_PublicKey_SetData(HE_CKKS_PublicKey* pk, const uint64_t* data_buffer, size_t num_elements, C_cudaStream_t stream) {
-    if (!pk || !pk->cpp_publickey || (!data_buffer && num_elements > 0)) return -1;
-    try {
-        heongpu::HostVector<heongpu::Data64> input_hv(num_elements);
-        if (num_elements > 0 && data_buffer) {
-            std::memcpy(input_hv.data(), data_buffer, num_elements * sizeof(heongpu::Data64));
-        }
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        pk->cpp_publickey->set_data(input_hv, cpp_stream);
-        return 0;
-    } catch (...) { return -2; }
-}
 
 
 // --- CKKS MultipartyPublicKey Functions ---
@@ -349,95 +321,7 @@ HE_CKKS_MultipartyPublicKey* HEonGPU_CKKS_MultipartyPublicKey_Load(HE_CKKS_Conte
 }
 
 
-// Getters for MultipartyPublickey
-C_scheme_type HEonGPU_CKKS_MultipartyPublicKey_GetScheme(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return static_cast<C_scheme_type>(-1);
-    try { return map_cpp_to_c_scheme_type_pk(mp_pk->cpp_mp_publickey->get_scheme()); } catch (...) { return static_cast<C_scheme_type>(-1); }
-}
-int HEonGPU_CKKS_MultipartyPublicKey_GetRingSize(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return 0;
-    try { return mp_pk->cpp_mp_publickey->ring_size(); } catch (...) { return 0; }
-}
-int HEonGPU_CKKS_MultipartyPublicKey_GetCoeffModulusCount(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return 0;
-    try { return mp_pk->cpp_mp_publickey->coeff_modulus_count(); } catch (...) { return 0; }
-}
-bool HEonGPU_CKKS_MultipartyPublicKey_IsInNttDomain(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return false;
-    try { return mp_pk->cpp_mp_publickey->is_in_ntt_domain(); } catch (...) { return false; }
-}
-bool HEonGPU_CKKS_MultipartyPublicKey_IsGenerated(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return false;
-    try { return mp_pk->cpp_mp_publickey->is_generated(); } catch (...) { return false; }
-}
-C_storage_type HEonGPU_CKKS_MultipartyPublicKey_GetStorageType(HE_CKKS_MultipartyPublicKey* mp_pk) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey) return C_STORAGE_TYPE_INVALID;
-    try { return map_cpp_to_c_storage_type_pk(mp_pk->cpp_mp_publickey->get_storage_type()); } catch (...) { return C_STORAGE_TYPE_INVALID; }
-}
 
-size_t HEonGPU_CKKS_MultipartyPublicKey_GetData(HE_CKKS_MultipartyPublicKey* mp_pk, uint64_t* data_buffer, size_t buffer_elements, C_cudaStream_t stream) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey || (!data_buffer && buffer_elements > 0)) return 0;
-    try {
-        heongpu::HostVector<heongpu::Data64> temp_host_vector;
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        mp_pk->cpp_mp_publickey->get_data(temp_host_vector, cpp_stream);
-        size_t elements_to_copy = std::min(buffer_elements, temp_host_vector.size());
-        if (elements_to_copy > 0 && data_buffer) {
-            std::memcpy(data_buffer, temp_host_vector.data(), elements_to_copy * sizeof(heongpu::Data64));
-        }
-        return elements_to_copy;
-    } catch (...) { return 0; }
-}
-
-int HEonGPU_CKKS_MultipartyPublicKey_GetSeed(HE_CKKS_MultipartyPublicKey* mp_pk, C_RNGSeed_Data* out_seed_data) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey || !out_seed_data) return -1;
-    
-    // Initialize output struct
-    out_seed_data->key_data = nullptr; out_seed_data->key_len = 0;
-    out_seed_data->nonce_data = nullptr; out_seed_data->nonce_len = 0;
-    out_seed_data->pstring_data = nullptr; out_seed_data->pstring_len = 0;
-
-    try {
-        const heongpu::RNGSeed& cpp_seed = mp_pk->cpp_mp_publickey->seed();
-
-        if (!cpp_seed.key_.empty()) {
-            out_seed_data->key_len = cpp_seed.key_.size();
-            out_seed_data->key_data = static_cast<unsigned char*>(malloc(out_seed_data->key_len));
-            if (!out_seed_data->key_data) { HEonGPU_Free_C_RNGSeed_Data_Members(out_seed_data); return -2; }
-            std::memcpy(out_seed_data->key_data, cpp_seed.key_.data(), out_seed_data->key_len);
-        }
-        if (!cpp_seed.nonce_.empty()) {
-            out_seed_data->nonce_len = cpp_seed.nonce_.size();
-            out_seed_data->nonce_data = static_cast<unsigned char*>(malloc(out_seed_data->nonce_len));
-            if (!out_seed_data->nonce_data) { HEonGPU_Free_C_RNGSeed_Data_Members(out_seed_data); return -2; }
-            std::memcpy(out_seed_data->nonce_data, cpp_seed.nonce_.data(), out_seed_data->nonce_len);
-        }
-        if (!cpp_seed.personalization_string_.empty()) {
-            out_seed_data->pstring_len = cpp_seed.personalization_string_.size();
-            out_seed_data->pstring_data = static_cast<unsigned char*>(malloc(out_seed_data->pstring_len));
-            if (!out_seed_data->pstring_data) { HEonGPU_Free_C_RNGSeed_Data_Members(out_seed_data); return -2; }
-            std::memcpy(out_seed_data->pstring_data, cpp_seed.personalization_string_.data(), out_seed_data->pstring_len);
-        }
-        return 0; // Success
-    } catch (...) { 
-        HEonGPU_Free_C_RNGSeed_Data_Members(out_seed_data); // Clean up partially allocated memory on error
-        return -3; 
-    }
-}
-
-// Setter for MultipartyPublickey (same as PublicKey as seed is set at construction)
-int HEonGPU_CKKS_MultipartyPublicKey_SetData(HE_CKKS_MultipartyPublicKey* mp_pk, const uint64_t* data_buffer, size_t num_elements, C_cudaStream_t stream) {
-    if (!mp_pk || !mp_pk->cpp_mp_publickey || (!data_buffer && num_elements > 0)) return -1;
-    try {
-        heongpu::HostVector<heongpu::Data64> input_hv(num_elements);
-        if (num_elements > 0 && data_buffer) {
-            std::memcpy(input_hv.data(), data_buffer, num_elements * sizeof(heongpu::Data64));
-        }
-        cudaStream_t cpp_stream = static_cast<cudaStream_t>(stream);
-        mp_pk->cpp_mp_publickey->set_data(input_hv, cpp_stream); // Calls base class set_data
-        return 0;
-    } catch (...) { return -2; }
-}
 
 
 } // extern "C"
