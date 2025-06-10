@@ -128,6 +128,45 @@ int HEonGPU_CKKS_Context_SetCoeffModulusValues(HE_CKKS_Context* context,
     }
 }
 
+int HEonGPU_CKKS_Context_SetCoeffModulusBitSizes(HE_CKKS_Context* context,
+                                                 const int* log_q_bit_sizes_data,
+                                                 size_t log_q_bit_sizes_len,
+                                                 const int* log_p_bit_sizes_data,
+                                                 size_t log_p_bit_sizes_len) {
+    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = (context->cpp_context);
+
+    if (!cpp_h_context) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusBitSizes failed: Invalid context pointer." << std::endl;
+        return -1;
+    }
+    if ((log_q_bit_sizes_len > 0 && !log_q_bit_sizes_data) || (log_p_bit_sizes_len > 0 && !log_p_bit_sizes_data)) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusBitSizes failed: Non-zero length with null data pointer." << std::endl;
+        return -1;
+    }
+
+    try {
+        std::vector<int> cpp_log_q_bit_sizes;
+        if (log_q_bit_sizes_len > 0) {
+            cpp_log_q_bit_sizes.assign(log_q_bit_sizes_data, log_q_bit_sizes_data + log_q_bit_sizes_len);
+        }
+
+        std::vector<int> cpp_log_p_bit_sizes;
+        if (log_p_bit_sizes_len > 0) {
+            cpp_log_p_bit_sizes.assign(log_p_bit_sizes_data, log_p_bit_sizes_data + log_p_bit_sizes_len);
+        }
+        for(int i=0;i<log_q_bit_sizes_len;i++){
+            std::cout << "The log_q_bit_sizes_data[i] is: " << log_q_bit_sizes_data[i] << std::endl;
+        }
+        cpp_h_context->set_coeff_modulus_bit_sizes(cpp_log_q_bit_sizes, cpp_log_p_bit_sizes);
+        return 0; // Success
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusBitSizes failed with C++ exception: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_Context_SetCoeffModulusBitSizes failed due to an unknown C++ exception." << std::endl;
+        return -2;
+    }
+}
 
 
 void HEonGPU_CKKS_Context_SetExactModulus(HE_CKKS_Context* context, bool exact_mod) {

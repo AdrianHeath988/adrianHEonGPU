@@ -159,6 +159,13 @@ int HEonGPU_CKKS_Context_SetCoeffModulusValues(HE_CKKS_Context* context,
                                                size_t log_p_bases_len);
 
 
+int HEonGPU_CKKS_Context_SetCoeffModulusBitSizes(HE_CKKS_Context* context,
+                                                 const int* log_q_bit_sizes_data,
+                                                 size_t log_q_bit_sizes_len,
+                                                 const int* log_p_bit_sizes_data,
+                                                 size_t log_p_bit_sizes_len);
+
+
 /**
  * @brief Sets the exact modulus flag for the CKKS context.
  * @param context Opaque pointer to the HE_CKKS_Context.
@@ -202,12 +209,7 @@ size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
                                             size_t buffer_count);
 // TODO: A function to get a specific modulus by index might also be useful.
 
-/**
- * @brief Gets the initial scale for the CKKS context.
- * @param context Opaque pointer to the HE_CKKS_Context.
- * @return double The scale value, or a negative value if context is invalid.
- */
-double HEonGPU_CKKS_Context_GetScale(HE_CKKS_Context* context);
+
 
 
 /**
