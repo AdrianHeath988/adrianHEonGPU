@@ -82,6 +82,29 @@ static heongpu::ExecutionOptions map_c_to_cpp_execution_options_kg(const C_Execu
 
 extern "C" {
 
+
+void generateSecretAndPublicKey(HE_CKKS_Context* context, const C_ExecutionOptions* options_c){
+    //generate context:
+    std::cout << "Before generate real_context" <<std::endl;
+    HE_CKKS_Context* real_context = HEonGPU_CKKS_Context_Create(C_KEYSWITCHING_METHOD_I, C_SEC_LEVEL_TYPE_128);
+    HEonGPU_CKKS_Context_SetPolyModulusDegree(real_context, 8192);
+    int pvals[] = {60, 30, 30, 30};
+    int qvals[] = {60};
+    HEonGPU_CKKS_Context_SetCoeffModulusBitSizes(real_context, pvals, 4, qvals, 1);
+    HEonGPU_CKKS_Context_Generate(real_context);
+
+    HEonGPU_CKKS_Context_PrintParameters(real_context);
+    std::cout << "After generate real_context" <<std::endl;
+    HE_CKKS_KeyGenerator* kg =  HEonGPU_CKKS_KeyGenerator_Create(real_context);
+    //create/generate secret key
+    HE_CKKS_SecretKey* sk = HEonGPU_CKKS_SecretKey_Create(real_context);
+    HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(kg, sk, options_c);
+    //create/generate public key
+    HE_CKKS_PublicKey* pk = HEonGPU_CKKS_PublicKey_Create(real_context);
+    std::cout << "Before generate public key" <<std::endl;
+    HEonGPU_CKKS_KeyGenerator_GeneratePublicKey(kg, pk, sk, options_c);
+    
+}
 // --- CKKS HEKeyGenerator Lifecycle ---
 HE_CKKS_KeyGenerator* HEonGPU_CKKS_KeyGenerator_Create(HE_CKKS_Context* context) {
     heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_kg(context);
@@ -124,7 +147,7 @@ int HEonGPU_CKKS_KeyGenerator_GenerateSecretKey(HE_CKKS_KeyGenerator* kg, HE_CKK
     }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
-        kg->cpp_keygen->generate_secret_key(*(get_cpp_secretkey(sk_c)), cpp_options);
+        kg->cpp_keygen->generate_secret_key(*(get_cpp_secretkey(sk_c)));
         return 0;
     } catch (const std::exception& e) { std::cerr << "GenerateSecretKey Error: " << e.what() << std::endl; return -2; }
       catch (...) { std::cerr << "GenerateSecretKey Unknown Error" << std::endl; return -2; }
@@ -142,6 +165,7 @@ int HEonGPU_CKKS_KeyGenerator_GeneratePublicKey(HE_CKKS_KeyGenerator* kg,
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_kg(options_c);
         // The call uses a non-const pointer for sk_c, which becomes a non-const reference
+        std::cout << "Before calling function" << std::endl;
         kg->cpp_keygen->generate_public_key(*(get_cpp_publickey(key_out_c)), *(get_cpp_secretkey(sk_c)), cpp_options);
         return 0;
     } catch (const std::exception& e) {

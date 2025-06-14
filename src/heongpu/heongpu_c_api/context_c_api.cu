@@ -155,7 +155,10 @@ int HEonGPU_CKKS_Context_SetCoeffModulusBitSizes(HE_CKKS_Context* context,
             cpp_log_p_bit_sizes.assign(log_p_bit_sizes_data, log_p_bit_sizes_data + log_p_bit_sizes_len);
         }
         for(int i=0;i<log_q_bit_sizes_len;i++){
-            std::cout << "The log_q_bit_sizes_data[i] is: " << log_q_bit_sizes_data[i] << std::endl;
+            std::cout << "The cpp_log_q_bit_sizes[i] is: " << cpp_log_q_bit_sizes[i] << std::endl;
+        }
+        for(int i=0;i<log_p_bit_sizes_len;i++){
+            std::cout << "The cpp_log_p_bit_sizes[i] is: " << cpp_log_p_bit_sizes[i] << std::endl;
         }
         cpp_h_context->set_coeff_modulus_bit_sizes(cpp_log_q_bit_sizes, cpp_log_p_bit_sizes);
         return 0; // Success
@@ -181,6 +184,11 @@ void HEonGPU_CKKS_Context_SetExactModulus(HE_CKKS_Context* context, bool exact_m
     }
 }
 
+void HEonGPU_CKKS_Context_PrintParameters(HE_CKKS_Context* context){
+    if (context && context->cpp_context) {
+        context->cpp_context->print_parameters();
+    }
+}
 
 
 int HEonGPU_CKKS_Context_Generate(HE_CKKS_Context* context) {

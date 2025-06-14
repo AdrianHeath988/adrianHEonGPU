@@ -210,6 +210,7 @@ size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
 // TODO: A function to get a specific modulus by index might also be useful.
 
 
+void HEonGPU_CKKS_Context_PrintParameters(HE_CKKS_Context* context);
 
 
 /**

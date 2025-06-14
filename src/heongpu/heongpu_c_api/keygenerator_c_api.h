@@ -16,6 +16,8 @@ extern "C" {
 // Opaque pointer type for the CKKS HEKeyGenerator
 typedef struct HE_CKKS_KeyGenerator_s HE_CKKS_KeyGenerator;
 
+void generateSecretAndPublicKey(HE_CKKS_Context* context, const C_ExecutionOptions* options_c);
+
 // --- CKKS HEKeyGenerator Lifecycle ---
 
 /**
@@ -47,7 +49,6 @@ void HEonGPU_CKKS_KeyGenerator_SetSeed(HE_CKKS_KeyGenerator* kg, int seed);
  * @brief Generates a secret key.
  * @param kg Opaque pointer to the HE_CKKS_KeyGenerator.
  * @param sk Opaque pointer to an existing HE_CKKS_SecretKey object to be populated.
- * @param hamming_weight The Hamming weight for the secret key.
  * @param options Pointer to C_ExecutionOptions (can be NULL for defaults).
  * @return 0 on success, non-zero on failure.
  */
