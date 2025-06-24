@@ -47,6 +47,13 @@ typedef enum {
 } C_scheme_type;
 
 typedef struct {
+    int CtoS_piece;
+    int StoC_piece;
+    int taylor_number;
+    bool less_key_mode;
+} C_BootstrappingConfig;
+
+typedef struct {
     C_cudaStream_t stream;
     C_storage_type storage;
     bool keep_initial_condition;

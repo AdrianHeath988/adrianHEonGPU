@@ -24,6 +24,11 @@ static heongpu::HEContext<heongpu::Scheme::CKKS>* get_cpp_context(HE_CKKS_Contex
     if (!context || !context->cpp_context) return nullptr;
     return context->cpp_context;
 }
+static heongpu::HEArithmeticOperator<heongpu::Scheme::CKKS>* get_cpp_arith_op(HE_CKKS_ArithmeticOperator* op) {
+    if (!op || !op->cpp_arith_op) return nullptr;
+    return op->cpp_arith_op;
+}
+
 static heongpu::HEEncoder<heongpu::Scheme::CKKS>* get_cpp_encoder(HE_CKKS_Encoder* encoder) {
     if (!encoder || !encoder->cpp_encoder) return nullptr;
     return encoder->cpp_encoder;
@@ -322,125 +327,108 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Conjugate(HE_CKKS_Arithmetic
 
 // --- Bootstrapping ---
 // Note: C++ bootstrap methods return new Ciphertext objects.
+int HEonGPU_CKKS_ArithmeticOperator_GenerateBootstrappingParams(HE_CKKS_ArithmeticOperator* op,
+                                                                double scale,
+                                                                const C_BootstrappingConfig* config) {
+    heongpu::HEArithmeticOperator<heongpu::Scheme::CKKS>* cpp_op = get_cpp_arith_op(op);
+    if (!cpp_op || !config) {
+        std::cerr << "GenerateBootstrappingParams Error: Invalid operator or config pointer.\n";
+        return -1;
+    }
+    try {
+        heongpu::BootstrappingConfig cpp_config(config->CtoS_piece, config->StoC_piece, config->taylor_number, config->less_key_mode);
+        cpp_op->generate_bootstrapping_params(scale, cpp_config);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "GenerateBootstrappingParams failed with exception: " << e.what() << std::endl;
+        return -2;
+    } catch (...) {
+        std::cerr << "GenerateBootstrappingParams failed with unknown exception." << std::endl;
+        return -2;
+    }
+}
 
-// Bootstrapping will be wrapped after non-bootstrapping works.
+int HEonGPU_CKKS_ArithmeticOperator_GetBootstrappingKeyIndices(HE_CKKS_ArithmeticOperator* op,
+                                                               int** out_indices,
+                                                               size_t* out_count) {
+    heongpu::HEArithmeticOperator<heongpu::Scheme::CKKS>* cpp_op = get_cpp_arith_op(op);
+    if (!cpp_op || !out_indices || !out_count) {
+        if (out_indices) *out_indices = nullptr;
+        if (out_count) *out_count = 0;
+        return -1;
+    }
+    *out_indices = nullptr;
+    *out_count = 0;
+    try {
+        std::vector<int> cpp_indices = cpp_op->bootstrapping_key_indexs();
+        *out_count = cpp_indices.size();
+        if (*out_count > 0) {
+            *out_indices = static_cast<int*>(malloc(*out_count * sizeof(int)));
+            if (!*out_indices) {
+                *out_count = 0;
+                std::cerr << "GetBootstrappingKeyIndices: malloc failed.\n";
+                return -2;
+            }
+            std::memcpy(*out_indices, cpp_indices.data(), *out_count * sizeof(int));
+        }
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "GetBootstrappingKeyIndices failed with exception: " << e.what() << std::endl;
+        if (*out_indices) { free(*out_indices); *out_indices = nullptr; }
+        *out_count = 0;
+        return -3;
+    } catch (...) {
+        std::cerr << "GetBootstrappingKeyIndices failed with unknown exception." << std::endl;
+        if (*out_indices) { free(*out_indices); *out_indices = nullptr; }
+        *out_count = 0;
+        return -3;
+    }
+}
 
-// #define WRAP_BOOTSTRAP_FUNC(FuncName, CppFuncName) \
-// HE_CKKS_Ciphertext* FuncName(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_c, HE_CKKS_RelinKey* relin_key_c, HE_CKKS_GaloisKey* galois_key_conj_c, HE_CKKS_GaloisKey* galois_key_rot_c, const C_ExecutionOptions* options_c) { \
-//     if (!op || !op->cpp_arith_op || !ct_in_c || !ct_in_c->cpp_ciphertext || \
-//         !relin_key_c || !relin_key_c->cpp_relinkey || \
-//         !galois_key_conj_c || !galois_key_conj_c->cpp_galoiskey || \
-//         !galois_key_rot_c || !galois_key_rot_c->cpp_galoiskey) { \
-//         std::cerr << #FuncName " Error: Invalid argument(s).\n"; return nullptr; \
-//     } \
-//     try { \
-//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c); \
-//         auto cpp_result = op->cpp_arith_op->CppFuncName(*(ct_in_c->cpp_ciphertext), *(relin_key_c->cpp_relinkey), *(galois_key_conj_c->cpp_galoiskey), *(galois_key_rot_c->cpp_galoiskey), cpp_options); \
-//         auto cpp_heap_result = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(std::move(cpp_result)); \
-//         if (!cpp_heap_result) return nullptr; \
-//         auto c_api_result = new (std::nothrow) HE_CKKS_Ciphertext_s; \
-//         if (!c_api_result) { delete cpp_heap_result; return nullptr; } \
-//         c_api_result->cpp_ciphertext = cpp_heap_result; \
-//         return c_api_result; \
-//     } catch (const std::exception& e) { std::cerr << #FuncName " Error: " << e.what() << std::endl; return nullptr; } \
-//       catch (...) { std::cerr << #FuncName " Unknown Error" << std::endl; return nullptr; } \
-// }
+HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_RegularBootstrapping(HE_CKKS_ArithmeticOperator* op,
+                                                                         HE_CKKS_Ciphertext* ct_in_c,
+                                                                         HE_CKKS_GaloisKey* galois_key_c,
+                                                                         HE_CKKS_RelinKey* relin_key_c,
+                                                                         const C_ExecutionOptions* options_c) {
+    heongpu::HEArithmeticOperator<heongpu::Scheme::CKKS>* cpp_op = get_cpp_arith_op(op);
+    if (!cpp_op || !ct_in_c || !galois_key_c || !relin_key_c) {
+        std::cerr << "RegularBootstrapping Error: Invalid argument(s).\n";
+        return nullptr;
+    }
 
-// WRAP_BOOTSTRAP_FUNC(HEonGPU_CKKS_ArithmeticOperator_Bootstrap, bootstrap)
-// WRAP_BOOTSTRAP_FUNC(HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Slim, bootstrap_slim)
-// WRAP_BOOTSTRAP_FUNC(HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Bit, bootstrap_bit)
-// WRAP_BOOTSTRAP_FUNC(HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Gate, bootstrap_gate)
+    heongpu::Ciphertext<heongpu::Scheme::CKKS>* cpp_ct_in = get_cpp_ciphertext(ct_in_c);
+    heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_gk = get_cpp_galoiskey(galois_key_c);
+    heongpu::Relinkey<heongpu::Scheme::CKKS>* cpp_rk = get_cpp_relinkey(relin_key_c);
 
+    if (!cpp_ct_in || !cpp_gk || !cpp_rk) {
+        std::cerr << "RegularBootstrapping Error: Failed to unwrap C API handles.\n";
+        return nullptr;
+    }
+    
+    try {
+        heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options(options_c);
+        heongpu::Ciphertext<heongpu::Scheme::CKKS> cpp_result_ct =
+            cpp_op->regular_bootstrapping(*cpp_ct_in, *cpp_gk, *cpp_rk, cpp_options);
 
-// --- CKKS HELogicOperator Lifecycle ---
-// I believe this to be unnecassary for Orion operations.
+        // Wrap the returned C++ object in a new C API handle
+        auto cpp_heap_result = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(std::move(cpp_result_ct));
+        if (!cpp_heap_result) return nullptr;
 
-// HE_CKKS_LogicOperator* HEonGPU_CKKS_LogicOperator_Create(HE_CKKS_Context* context, HE_CKKS_Encoder* encoder) {
-//     heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context(context);
-//     heongpu::HEEncoder<heongpu::Scheme::CKKS>* cpp_h_encoder = get_cpp_encoder(encoder);
-//      if (!cpp_h_context || !cpp_h_encoder) {
-//         std::cerr << "LogicOperator_Create: Invalid context or encoder." << std::endl;
-//         return nullptr;
-//     }
-//     try {
-//         auto cpp_obj = new (std::nothrow) heongpu::HELogicOperator<heongpu::Scheme::CKKS>(*cpp_h_context, *cpp_h_encoder);
-//         if (!cpp_obj) return nullptr;
-//         auto c_api_obj = new (std::nothrow) HE_CKKS_LogicOperator_s;
-//         if (!c_api_obj) { delete cpp_obj; return nullptr; }
-//         c_api_obj->cpp_logic_op = cpp_obj;
-//         return c_api_obj;
-//     } catch (const std::exception& e) { std::cerr << "LogicOperator_Create Error: " << e.what() << std::endl; return nullptr;}
-//       catch (...) { std::cerr << "LogicOperator_Create Unknown Error" << std::endl; return nullptr;}
-// }
+        HE_CKKS_Ciphertext* c_api_result = new (std::nothrow) HE_CKKS_Ciphertext_s;
+        if (!c_api_result) { delete cpp_heap_result; return nullptr; }
+        
+        c_api_result->cpp_ciphertext = cpp_heap_result;
+        return c_api_result;
 
-// void HEonGPU_CKKS_LogicOperator_Delete(HE_CKKS_LogicOperator* op) {
-//     if (op) { delete op->cpp_logic_op; delete op; }
-// }
+    } catch (const std::exception& e) {
+        std::cerr << "RegularBootstrapping failed with exception: " << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        std::cerr << "RegularBootstrapping failed with unknown exception." << std::endl;
+        return nullptr;
+    }
+}
 
-// // --- CKKS HELogicOperator Operations ---
-// void HEonGPU_CKKS_LogicOperator_NOT_Approximation_Inplace(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct_in_out, const C_ExecutionOptions* options_c) {
-//     if (!op || !op->cpp_logic_op || !ct_in_out || !ct_in_out->cpp_ciphertext) return;
-//     try {
-//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
-//         op->cpp_logic_op->NOT_approximation_inplace(*(ct_in_out->cpp_ciphertext), cpp_options);
-//     } catch (...) { /* error handling */ }
-// }
-
-// HE_CKKS_Ciphertext* HEonGPU_CKKS_LogicOperator_NOT_Approximation(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct_in_c, const C_ExecutionOptions* options_c) {
-//     if (!op || !op->cpp_logic_op || !ct_in_c || !ct_in_c->cpp_ciphertext) return nullptr;
-//     try {
-//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
-//         auto cpp_result = op->cpp_logic_op->NOT_approximation(*(ct_in_c->cpp_ciphertext), cpp_options);
-//         auto cpp_heap_result = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(std::move(cpp_result));
-//         if (!cpp_heap_result) return nullptr;
-//         auto c_api_result = new (std::nothrow) HE_CKKS_Ciphertext_s;
-//         if (!c_api_result) { delete cpp_heap_result; return nullptr; }
-//         c_api_result->cpp_ciphertext = cpp_heap_result;
-//         return c_api_result;
-//     } catch (...) { return nullptr; }
-// }
-
-// // (XOR and XNOR functions follow a similar pattern, taking GaloisKey and RelinKey)
-// #define WRAP_LOGIC_BINARY_OP_INPLACE(FuncName, CppFuncName) \
-// void FuncName(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in_out_c, HE_CKKS_Ciphertext* ct2_in_c, HE_CKKS_GaloisKey* galois_key_c, HE_CKKS_RelinKey* relin_key_c, const C_ExecutionOptions* options_c) { \
-//     if (!op || !op->cpp_logic_op || !ct1_in_out_c || !ct1_in_out_c->cpp_ciphertext || \
-//         !ct2_in_c || !ct2_in_c->cpp_ciphertext || \
-//         !galois_key_c || !galois_key_c->cpp_galoiskey || \
-//         !relin_key_c || !relin_key_c->cpp_relinkey) { \
-//         std::cerr << #FuncName " Error: Invalid argument(s).\n"; return; \
-//     } \
-//     try { \
-//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c); \
-//         op->cpp_logic_op->CppFuncName(*(ct1_in_out_c->cpp_ciphertext), *(ct2_in_c->cpp_ciphertext), *(galois_key_c->cpp_galoiskey), *(relin_key_c->cpp_relinkey), cpp_options); \
-//     } catch (const std::exception& e) { std::cerr << #FuncName " Error: " << e.what() << std::endl; } \
-//       catch (...) { std::cerr << #FuncName " Unknown Error" << std::endl; } \
-// }
-
-// #define WRAP_LOGIC_BINARY_OP_NEW(FuncName, CppFuncName) \
-// HE_CKKS_Ciphertext* FuncName(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in_c, HE_CKKS_Ciphertext* ct2_in_c, HE_CKKS_GaloisKey* galois_key_c, HE_CKKS_RelinKey* relin_key_c, const C_ExecutionOptions* options_c) { \
-//     if (!op || !op->cpp_logic_op || !ct1_in_c || !ct1_in_c->cpp_ciphertext || \
-//         !ct2_in_c || !ct2_in_c->cpp_ciphertext || \
-//         !galois_key_c || !galois_key_c->cpp_galoiskey || \
-//         !relin_key_c || !relin_key_c->cpp_relinkey) { \
-//         std::cerr << #FuncName " Error: Invalid argument(s).\n"; return nullptr; \
-//     } \
-//     try { \
-//         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c); \
-//         auto cpp_result = op->cpp_logic_op->CppFuncName(*(ct1_in_c->cpp_ciphertext), *(ct2_in_c->cpp_ciphertext), *(galois_key_c->cpp_galoiskey), *(relin_key_c->cpp_relinkey), cpp_options); \
-//         auto cpp_heap_result = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(std::move(cpp_result)); \
-//         if (!cpp_heap_result) return nullptr; \
-//         auto c_api_result = new (std::nothrow) HE_CKKS_Ciphertext_s; \
-//         if (!c_api_result) { delete cpp_heap_result; return nullptr; } \
-//         c_api_result->cpp_ciphertext = cpp_heap_result; \
-//         return c_api_result; \
-//     } catch (const std::exception& e) { std::cerr << #FuncName " Error: " << e.what() << std::endl; return nullptr; } \
-//       catch (...) { std::cerr << #FuncName " Unknown Error" << std::endl; return nullptr; } \
-// }
-
-// WRAP_LOGIC_BINARY_OP_INPLACE(HEonGPU_CKKS_LogicOperator_XOR_Approximation_Inplace, XOR_approximation_inplace)
-// WRAP_LOGIC_BINARY_OP_NEW(HEonGPU_CKKS_LogicOperator_XOR_Approximation, XOR_approximation)
-// WRAP_LOGIC_BINARY_OP_INPLACE(HEonGPU_CKKS_LogicOperator_XNOR_Approximation_Inplace, XNOR_approximation_inplace)
-// WRAP_LOGIC_BINARY_OP_NEW(HEonGPU_CKKS_LogicOperator_XNOR_Approximation, XNOR_approximation)
 
 
 } // extern "C"

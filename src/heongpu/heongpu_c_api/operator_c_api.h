@@ -63,27 +63,20 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Rotate(HE_CKKS_ArithmeticOpe
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Conjugate(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, HE_CKKS_Ciphertext* ct_out, HE_CKKS_GaloisKey* galois_key, const C_ExecutionOptions* options);
 
 // Bootstrapping
-HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Bootstrap(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in, HE_CKKS_RelinKey* relin_key, HE_CKKS_GaloisKey* galois_key_conj, HE_CKKS_GaloisKey* galois_key_rot, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Slim(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in, HE_CKKS_RelinKey* relin_key, HE_CKKS_GaloisKey* galois_key_conj, HE_CKKS_GaloisKey* galois_key_rot, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Bit(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in, HE_CKKS_RelinKey* relin_key, HE_CKKS_GaloisKey* galois_key_conj, HE_CKKS_GaloisKey* galois_key_rot, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Bootstrap_Gate(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in, HE_CKKS_RelinKey* relin_key, HE_CKKS_GaloisKey* galois_key_conj, HE_CKKS_GaloisKey* galois_key_rot, const C_ExecutionOptions* options);
 
+int HEonGPU_CKKS_ArithmeticOperator_GenerateBootstrappingParams(HE_CKKS_ArithmeticOperator* op,
+                                                                double scale,
+                                                                const C_BootstrappingConfig* config);
 
-// --- CKKS HELogicOperator Lifecycle ---
-HE_CKKS_LogicOperator* HEonGPU_CKKS_LogicOperator_Create(HE_CKKS_Context* context, HE_CKKS_Encoder* encoder);
-void HEonGPU_CKKS_LogicOperator_Delete(HE_CKKS_LogicOperator* op);
+int HEonGPU_CKKS_ArithmeticOperator_GetBootstrappingKeyIndices(HE_CKKS_ArithmeticOperator* op,
+                                                               int** out_indices,
+                                                               size_t* out_count);
 
-// --- CKKS HELogicOperator Operations ---
-void HEonGPU_CKKS_LogicOperator_NOT_Approximation_Inplace(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct_in_out, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_LogicOperator_NOT_Approximation(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct_in, const C_ExecutionOptions* options);
-
-void HEonGPU_CKKS_LogicOperator_XOR_Approximation_Inplace(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in_out, HE_CKKS_Ciphertext* ct2_in, HE_CKKS_GaloisKey* galois_key, HE_CKKS_RelinKey* relin_key, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_LogicOperator_XOR_Approximation(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in, HE_CKKS_Ciphertext* ct2_in, HE_CKKS_GaloisKey* galois_key, HE_CKKS_RelinKey* relin_key, const C_ExecutionOptions* options);
-
-void HEonGPU_CKKS_LogicOperator_XNOR_Approximation_Inplace(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in_out, HE_CKKS_Ciphertext* ct2_in, HE_CKKS_GaloisKey* galois_key, HE_CKKS_RelinKey* relin_key, const C_ExecutionOptions* options);
-HE_CKKS_Ciphertext* HEonGPU_CKKS_LogicOperator_XNOR_Approximation(HE_CKKS_LogicOperator* op, HE_CKKS_Ciphertext* ct1_in, HE_CKKS_Ciphertext* ct2_in, HE_CKKS_GaloisKey* galois_key, HE_CKKS_RelinKey* relin_key, const C_ExecutionOptions* options);
-
-
+HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_RegularBootstrapping(HE_CKKS_ArithmeticOperator* op,
+                                                                         HE_CKKS_Ciphertext* ct_in,
+                                                                         HE_CKKS_GaloisKey* galois_key,
+                                                                         HE_CKKS_RelinKey* relin_key,
+                                                                         const C_ExecutionOptions* options);
 #ifdef __cplusplus
 } // extern "C"
 #endif
