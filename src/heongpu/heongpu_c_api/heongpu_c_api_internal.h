@@ -15,6 +15,7 @@ namespace heongpu {
     template <::heongpu::Scheme S> class MultipartyGaloiskey;
     template <::heongpu::Scheme S> class Switchkey;
     template <::heongpu::Scheme S> class HEEncoder;
+    template <::heongpu::Scheme S> class HEEncryptor;
     template <::heongpu::Scheme S> class HEDecryptor;
     template <::heongpu::Scheme S> class HEKeyGenerator;
     template <::heongpu::Scheme S> class HEArithmeticOperator;
@@ -65,6 +66,10 @@ struct HE_CKKS_MultipartyGaloisKey_s {
 
 struct HE_CKKS_Encoder_s {
     heongpu::HEEncoder<heongpu::Scheme::CKKS>* cpp_encoder;
+};
+
+struct HE_CKKS_Encryptor_s {
+    heongpu::HEEncryptor<heongpu::Scheme::CKKS>* cpp_encryptor;
 };
 
 struct HE_CKKS_Decryptor_s {

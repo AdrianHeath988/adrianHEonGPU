@@ -64,6 +64,7 @@ uint64_t* HEonGPU_CKKS_MultipartyRelinKey_GetDataPointerForLevel(HE_CKKS_Multipa
 
 // --- CKKS GaloisKey Functions ---
 HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Create(HE_CKKS_Context* context, bool store_in_gpu);
+HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Create_With_Shifts(HE_CKKS_Context* context, int* shift_vec, size_t num_shifts);
 void HEonGPU_CKKS_GaloisKey_Delete(HE_CKKS_GaloisKey* gk);
 HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Clone(const HE_CKKS_GaloisKey* other_gk);
 int HEonGPU_CKKS_GaloisKey_Assign_Copy(HE_CKKS_GaloisKey* dest_gk, const HE_CKKS_GaloisKey* src_gk);

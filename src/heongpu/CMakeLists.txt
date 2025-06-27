@@ -60,6 +60,8 @@ add_library(heongpu_c_api SHARED
     heongpu_c_api/decryptor_c_api.h
     heongpu_c_api/encoder_c_api.cu
     heongpu_c_api/encoder_c_api.h
+    heongpu_c_api/encryptor_c_api.cu
+    heongpu_c_api/encryptor_c_api.h
     heongpu_c_api/evaluationkey_c_api.cu
     heongpu_c_api/evaluationkey_c_api.h
     heongpu_c_api/keygenerator_c_api.cu
@@ -99,6 +101,7 @@ install(FILES
     heongpu_c_api/context_c_api.h
     heongpu_c_api/decryptor_c_api.h
     heongpu_c_api/encoder_c_api.h
+    heongpu_c_api/encryptor_c_api.h
     heongpu_c_api/evaluationkey_c_api.h
     heongpu_c_api/keygenerator_c_api.h
     heongpu_c_api/operator_c_api.h

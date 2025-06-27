@@ -225,31 +225,41 @@ size_t HEonGPU_CKKS_Context_GetCoeffModulusSize(HE_CKKS_Context* context) {
     return 0;
 }
 
-//HEonGPU Does not have a getter to support such a method
-// size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
-//                                             C_Modulus64* moduli_buffer,
-//                                             size_t buffer_count) {
-//     if (context && context->cpp_context && moduli_buffer) {
-//         try {
-//             const heongpu::HostVector<heongpu::Modulus64>& cpp_moduli = 
-//                 context->cpp_context->[NEED GETTER HERE]();
-//             size_t num_to_copy = std::min(buffer_count, cpp_moduli.size());
-//             for (size_t i = 0; i < num_to_copy; ++i) {
-//                 moduli_buffer[i].value = cpp_moduli[i].value;
-//                 moduli_buffer[i].bit   = cpp_moduli[i].bit;
-//                 moduli_buffer[i].mu    = cpp_moduli[i].mu;
-//             }
-//             return num_to_copy;
-//         } catch (const std::exception& e) {
-//             std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed: " << e.what() << std::endl;
-//             return 0; 
-//         } catch (...) {
-//             std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed due to an unknown exception." << std::endl;
-//             return 0;
-//         }
-//     }
-//     return 0;
-// }
+size_t HEonGPU_CKKS_Context_GetCoeffModulus(HE_CKKS_Context* context,
+                                          C_Modulus64* moduli_buffer,
+                                          size_t buffer_count) {
+    if (!context || !context->cpp_context) {
+        std::cerr << "C++ DEBUG: GetCoeffModulus called with invalid context." << std::endl;
+        return 0;
+    }
+
+    try {
+        std::vector<Modulus64> cpp_moduli = 
+            context->cpp_context->get_key_modulus();
+
+        std::cerr << "--- C++ DEBUG (Forced Flush) ---" << std::endl;
+        std::cerr << "Function: HEonGPU_CKKS_Context_GetCoeffModulus" << std::endl;
+        std::cerr << "Vector size from get_key_modulus(): " << cpp_moduli.size() << std::endl;
+        for (size_t i = 0; i < cpp_moduli.size(); ++i) {
+            std::cerr << "  - Modulus[" << i << "]: value = " << cpp_moduli[i].value << std::endl;
+        }
+        std::cerr << "----------------------------------" << std::endl;
+        if (moduli_buffer == NULL) {
+            return cpp_moduli.size();
+        }
+        size_t num_to_copy = std::min(buffer_count, cpp_moduli.size());
+        for (size_t i = 0; i < num_to_copy; ++i) {
+            moduli_buffer[i].value = cpp_moduli[i].value;
+            moduli_buffer[i].bit   = cpp_moduli[i].bit;
+            moduli_buffer[i].mu    = cpp_moduli[i].mu;
+        }
+        return num_to_copy;
+
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_Context_GetCoeffModulus failed: " << e.what() << std::endl;
+        return 0; 
+    }
+}
 
 
 

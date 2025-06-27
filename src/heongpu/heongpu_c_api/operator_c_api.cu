@@ -57,7 +57,19 @@ static heongpu::Galoiskey<heongpu::Scheme::CKKS>* get_cpp_galoiskey(HE_CKKS_Galo
     if (!gk || !gk->cpp_galoiskey) return nullptr;
     return gk->cpp_galoiskey;
 }
-
+static heongpu::ExecutionOptions map_c_to_cpp_execution_options(const C_ExecutionOptions* c_options) {
+    heongpu::ExecutionOptions cpp_options; // Defaults from C++ struct definition
+    if (c_options) {
+        cpp_options.stream_ = static_cast<cudaStream_t>(c_options->stream);
+        if (c_options->storage == C_STORAGE_TYPE_HOST) {
+            cpp_options.storage_ = heongpu::storage_type::HOST;
+        } else if (c_options->storage == C_STORAGE_TYPE_DEVICE) {
+            cpp_options.storage_ = heongpu::storage_type::DEVICE;
+        }
+        cpp_options.keep_initial_condition_ = c_options->keep_initial_condition;
+    }
+    return cpp_options;
+}
 
 // Helper to map C types to C++ ExecutionOptions
 static heongpu::ExecutionOptions map_c_to_cpp_execution_options_op(const C_ExecutionOptions* c_options) {

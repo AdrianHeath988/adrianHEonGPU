@@ -44,7 +44,7 @@ HE_CKKS_RelinKey* HEonGPU_CKKS_RelinKey_Create(HE_CKKS_Context* context, bool st
     heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context(context);
     if (!cpp_h_context) return nullptr;
     try {
-        auto cpp_obj = new (std::nothrow) heongpu::Relinkey<heongpu::Scheme::CKKS>(*cpp_h_context, store_in_gpu);
+        auto cpp_obj = new (std::nothrow) heongpu::Relinkey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_obj) return nullptr;
         auto c_api_obj = new (std::nothrow) HE_CKKS_RelinKey_s;
         if (!c_api_obj) { delete cpp_obj; return nullptr; }
@@ -102,7 +102,7 @@ HE_CKKS_RelinKey* HEonGPU_CKKS_RelinKey_Load(HE_CKKS_Context* context, const uns
     heongpu::Relinkey<heongpu::Scheme::CKKS>* cpp_obj = nullptr;
     HE_CKKS_RelinKey* c_api_obj = nullptr;
     try {
-        cpp_obj = new (std::nothrow) heongpu::Relinkey<heongpu::Scheme::CKKS>(*cpp_h_context, store_in_gpu_on_load);
+        cpp_obj = new (std::nothrow) heongpu::Relinkey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_obj) return nullptr;
         if (len > 0 && bytes) {
             std::string str_data(reinterpret_cast<const char*>(bytes), len);
@@ -182,7 +182,7 @@ HE_CKKS_MultipartyRelinKey* HEonGPU_CKKS_MultipartyRelinKey_Create(HE_CKKS_Conte
         }
         
         // Call the C++ constructor with the seed
-        auto cpp_obj = new (std::nothrow) heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_seed, store_in_gpu);
+        auto cpp_obj = new (std::nothrow) heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>(*cpp_h_context, cpp_seed);
         if (!cpp_obj) {
              std::cerr << "HEonGPU_CKKS_MultipartyRelinKey_Create failed: C++ allocation failed." << std::endl;
             return nullptr;
@@ -255,7 +255,7 @@ HE_CKKS_MultipartyRelinKey* HEonGPU_CKKS_MultipartyRelinKey_Load(HE_CKKS_Context
     try {
         heongpu::RNGSeed temp_seed;
 
-        cpp_obj = new (std::nothrow) heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>(*cpp_h_context, temp_seed, store_in_gpu_on_load);
+        cpp_obj = new (std::nothrow) heongpu::MultipartyRelinkey<heongpu::Scheme::CKKS>(*cpp_h_context, temp_seed);
         if (!cpp_obj) return nullptr;
         if (len > 0 && bytes) {
             std::string str_data(reinterpret_cast<const char*>(bytes), len);
@@ -293,7 +293,7 @@ HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Create(HE_CKKS_Context* context, bool 
     if (!cpp_h_context) return nullptr;
     try {
 
-        auto cpp_obj = new (std::nothrow) heongpu::Galoiskey<heongpu::Scheme::CKKS>(*cpp_h_context, store_in_gpu);
+        auto cpp_obj = new (std::nothrow) heongpu::Galoiskey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_obj) return nullptr;
         auto c_api_obj = new (std::nothrow) HE_CKKS_GaloisKey_s;
         if (!c_api_obj) { delete cpp_obj; return nullptr; }
@@ -301,7 +301,39 @@ HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Create(HE_CKKS_Context* context, bool 
         return c_api_obj;
     } catch (...) { return nullptr; }
 }
+HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Create_With_Shifts(HE_CKKS_Context* context, int* shift_vec, size_t num_shifts) {
+    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context(context);
+    if (!cpp_h_context) {
+        return nullptr;
+    }
+    // Note: It's valid for shift_vec to be null if num_shifts is 0 (for default keys).
 
+    try {
+        std::vector<int> shifts;
+        if (shift_vec && num_shifts > 0) {
+            shifts.assign(shift_vec, shift_vec + num_shifts);
+        }
+        auto c_api_obj = new (std::nothrow) HE_CKKS_GaloisKey_s;
+        if (!c_api_obj) {
+            std::cerr << "GaloisKey_Create_With_Shifts: Failed to allocate C-API wrapper." << std::endl;
+            return nullptr;
+        }
+        c_api_obj->cpp_galoiskey = new (std::nothrow) heongpu::Galoiskey<heongpu::Scheme::CKKS>(*cpp_h_context, shifts);
+        if (!c_api_obj->cpp_galoiskey) {
+            delete c_api_obj;
+            std::cerr << "GaloisKey_Create_With_Shifts: Failed to allocate C++ Galoiskey object." << std::endl;
+            return nullptr;
+        }
+        return c_api_obj;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_GaloisKey_Create_With_Shifts failed with exception: " << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_GaloisKey_Create_With_Shifts failed with an unknown exception." << std::endl;
+        return nullptr;
+    }
+}
 void HEonGPU_CKKS_GaloisKey_Delete(HE_CKKS_GaloisKey* gk) {
     if (gk) { delete gk->cpp_galoiskey; delete gk; }
 }
@@ -353,7 +385,7 @@ HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Load(HE_CKKS_Context* context, const u
     heongpu::Galoiskey<heongpu::Scheme::CKKS>* cpp_obj = nullptr;
     HE_CKKS_GaloisKey* c_api_obj = nullptr;
     try {
-        cpp_obj = new (std::nothrow) heongpu::Galoiskey<heongpu::Scheme::CKKS>(*cpp_h_context, store_in_gpu_on_load);
+        cpp_obj = new (std::nothrow) heongpu::Galoiskey<heongpu::Scheme::CKKS>(*cpp_h_context);
         if (!cpp_obj) return nullptr;
         if (len > 0 && bytes) {
             std::string str_data(reinterpret_cast<const char*>(bytes), len);

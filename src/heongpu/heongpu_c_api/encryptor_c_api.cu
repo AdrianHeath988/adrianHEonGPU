@@ -1,6 +1,6 @@
 #include "encryptor_c_api.h"
 #include "heongpu.cuh"
-
+#include "heongpu_c_api_internal.h"
 #include "ckks/context.cuh"
 #include "ckks/publickey.cuh"
 #include "ckks/secretkey.cuh"
@@ -28,7 +28,7 @@ static heongpu::Publickey<heongpu::Scheme::CKKS>* get_cpp_publickey_enc(HE_CKKS_
     if (!pk || !pk->cpp_publickey) return nullptr; // Assuming cpp_publickey from publickey_c_api.cu
     return pk->cpp_publickey;
 }
-static heongpu::SecretKey<heongpu::Scheme::CKKS>* get_cpp_secretkey_enc(HE_CKKS_SecretKey* sk) {
+static heongpu::Secretkey<heongpu::Scheme::CKKS>* get_cpp_secretkey_enc(HE_CKKS_SecretKey* sk) {
     if (!sk || !sk->cpp_secretkey) return nullptr; // Assuming cpp_secretkey from secretkey_c_api.cu
     return sk->cpp_secretkey;
 }
@@ -79,24 +79,24 @@ HE_CKKS_Encryptor* HEonGPU_CKKS_Encryptor_Create_With_PublicKey(HE_CKKS_Context*
       catch (...) { std::cerr << "Encryptor_Create_With_PublicKey Unknown Error" << std::endl; return nullptr; }
 }
 
-HE_CKKS_Encryptor* HEonGPU_CKKS_Encryptor_Create_With_SecretKey(HE_CKKS_Context* context,
-                                                                HE_CKKS_SecretKey* sk) {
-    heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_enc(context);
-    heongpu::SecretKey<heongpu::Scheme::CKKS>* cpp_sk = get_cpp_secretkey_enc(sk);
-    if (!cpp_h_context || !cpp_sk) {
-        std::cerr << "Encryptor_Create_With_SecretKey: Invalid context or secret key." << std::endl;
-        return nullptr;
-    }
-    try {
-        auto cpp_obj = new (std::nothrow) heongpu::HEEncryptor<heongpu::Scheme::CKKS>(*cpp_h_context, *cpp_sk);
-        if (!cpp_obj) { std::cerr << "Encryptor_Create_With_SecretKey: C++ allocation failed.\n"; return nullptr; }
-        auto c_api_obj = new (std::nothrow) HE_CKKS_Encryptor_s;
-        if (!c_api_obj) { delete cpp_obj; std::cerr << "Encryptor_Create_With_SecretKey: C API wrapper allocation failed.\n"; return nullptr; }
-        c_api_obj->cpp_encryptor = cpp_obj;
-        return c_api_obj;
-    } catch (const std::exception& e) { std::cerr << "Encryptor_Create_With_SecretKey Error: " << e.what() << std::endl; return nullptr; }
-      catch (...) { std::cerr << "Encryptor_Create_With_SecretKey Unknown Error" << std::endl; return nullptr; }
-}
+// HE_CKKS_Encryptor* HEonGPU_CKKS_Encryptor_Create_With_SecretKey(HE_CKKS_Context* context,
+//                                                                 HE_CKKS_SecretKey* sk) {
+//     heongpu::HEContext<heongpu::Scheme::CKKS>* cpp_h_context = get_cpp_context_enc(context);
+//     heongpu::Secretkey<heongpu::Scheme::CKKS>* cpp_sk = get_cpp_secretkey_enc(sk);
+//     if (!cpp_h_context || !cpp_sk) {
+//         std::cerr << "Encryptor_Create_With_SecretKey: Invalid context or secret key." << std::endl;
+//         return nullptr;
+//     }
+//     try {
+//         auto cpp_obj = new (std::nothrow) heongpu::HEEncryptor<heongpu::Scheme::CKKS>(*cpp_h_context, *cpp_sk);
+//         if (!cpp_obj) { std::cerr << "Encryptor_Create_With_SecretKey: C++ allocation failed.\n"; return nullptr; }
+//         auto c_api_obj = new (std::nothrow) HE_CKKS_Encryptor_s;
+//         if (!c_api_obj) { delete cpp_obj; std::cerr << "Encryptor_Create_With_SecretKey: C API wrapper allocation failed.\n"; return nullptr; }
+//         c_api_obj->cpp_encryptor = cpp_obj;
+//         return c_api_obj;
+//     } catch (const std::exception& e) { std::cerr << "Encryptor_Create_With_SecretKey Error: " << e.what() << std::endl; return nullptr; }
+//       catch (...) { std::cerr << "Encryptor_Create_With_SecretKey Unknown Error" << std::endl; return nullptr; }
+// }
 
 void HEonGPU_CKKS_Encryptor_Delete(HE_CKKS_Encryptor* encryptor) {
     if (encryptor) {
@@ -130,8 +130,9 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_Encryptor_Encrypt_New(HE_CKKS_Encryptor* encryp
     }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_enc(options_c);
-        heongpu::Ciphertext<heongpu::Scheme::CKKS> cpp_result_ct =
-            encryptor->cpp_encryptor->encrypt(*(get_cpp_plaintext_enc(pt_in_c)), cpp_options);
+        heongpu::Ciphertext<heongpu::Scheme::CKKS> cpp_result_ct;
+        heongpu::Plaintext<heongpu::Scheme::CKKS> cpp_plaintext = *(get_cpp_plaintext_enc(pt_in_c));
+        encryptor->cpp_encryptor->encrypt(cpp_result_ct, cpp_plaintext, cpp_options);
 
         auto cpp_heap_result = new (std::nothrow) heongpu::Ciphertext<heongpu::Scheme::CKKS>(std::move(cpp_result_ct));
         if (!cpp_heap_result) { std::cerr << "Encrypt_New: C++ result allocation failed.\n"; return nullptr; }
