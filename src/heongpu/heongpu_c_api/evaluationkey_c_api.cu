@@ -338,6 +338,31 @@ void HEonGPU_CKKS_GaloisKey_Delete(HE_CKKS_GaloisKey* gk) {
     if (gk) { delete gk->cpp_galoiskey; delete gk; }
 }
 
+void HEonGPU_CKKS_GaloisKey_StoreInDevice(HE_CKKS_GaloisKey* gk, void* stream) {
+    if (gk && gk->cpp_galoiskey) {
+        try {
+            gk->cpp_galoiskey->store_in_device(static_cast<cudaStream_t>(stream));
+        } catch (const std::exception& e) {
+            std::cerr << "HEonGPU_CKKS_GaloisKey_StoreInDevice failed with exception: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "HEonGPU_CKKS_GaloisKey_StoreInDevice failed with an unknown exception." << std::endl;
+        }
+    }
+}
+
+void HEonGPU_CKKS_GaloisKey_StoreInHost(HE_CKKS_GaloisKey* gk, void* stream) {
+    if (gk && gk->cpp_galoiskey) {
+        try {
+            gk->cpp_galoiskey->store_in_host(static_cast<cudaStream_t>(stream));
+        } catch (const std::exception& e) {
+            std::cerr << "HEonGPU_CKKS_GaloisKey_StoreInHost failed with exception: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "HEonGPU_CKKS_GaloisKey_StoreInHost failed with an unknown exception." << std::endl;
+        }
+    }
+}
+
+
 HE_CKKS_GaloisKey* HEonGPU_CKKS_GaloisKey_Clone(const HE_CKKS_GaloisKey* other_gk) {
     if (!other_gk || !other_gk->cpp_galoiskey) return nullptr;
     try {
