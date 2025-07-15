@@ -101,11 +101,15 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Create(HE_CKKS_Context* context_c_ap
 
 
 void HEonGPU_CKKS_Ciphertext_Delete(HE_CKKS_Ciphertext* ciphertext) {
-    if (ciphertext) {
+    // This function should ONLY delete the C++ object pointed to by the wrapper.
+    // The C-style wrapper struct (ciphertext) itself will be freed by the
+    // calling language's runtime (Python's garbage collector in this case).
+    if (ciphertext && ciphertext->cpp_ciphertext) {
         delete ciphertext->cpp_ciphertext;
-        delete ciphertext;
+        ciphertext->cpp_ciphertext = nullptr;
     }
 }
+
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Clone(const HE_CKKS_Ciphertext* other_ciphertext) {
     if (!other_ciphertext || !other_ciphertext->cpp_ciphertext) {
@@ -290,6 +294,21 @@ bool HEonGPU_CKKS_Ciphertext_IsInNttDomain(HE_CKKS_Ciphertext* ciphertext) {
         // inline bool is_in_ntt_domain() const noexcept { return in_ntt_domain_; }
         return ciphertext->cpp_ciphertext->in_ntt_domain();
     } catch (...) { return false; }
+}
+int HEonGPU_CKKS_Ciphertext_GetDepth(HE_CKKS_Ciphertext* ciphertext) {
+    if (!ciphertext || !ciphertext->cpp_ciphertext) {
+        std::cerr << "Error: Invalid ciphertext pointer in GetDepth." << std::endl;
+        return 0;
+    }
+    try {
+        return ciphertext->cpp_ciphertext->depth();
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_Ciphertext_GetDepth failed with C++ exception: " << e.what() << std::endl;
+        return 0;
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_Ciphertext_GetDepth failed due to an unknown C++ exception." << std::endl;
+        return 0;
+    }
 }
 
 bool HEonGPU_CKKS_Ciphertext_Is_On_Device(HE_CKKS_Ciphertext* ciphertext) {

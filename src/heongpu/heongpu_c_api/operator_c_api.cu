@@ -147,7 +147,15 @@ void HEonGPU_CKKS_ArithmeticOperator_Add_Plain_Inplace(HE_CKKS_ArithmeticOperato
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->add_plain_inplace(*(ct_in_out->cpp_ciphertext), *(pt_in->cpp_plaintext), cpp_options);
-    } catch (const std::exception& e) { std::cerr << "Add_Plain_Inplace Error: " << e.what() << std::endl; }
+    } catch (const std::exception& e) { 
+        std::cerr << "Add_Plain_Inplace Error: " << e.what() << std::endl; 
+        if (ct_in_out && ct_in_out->cpp_ciphertext) {
+            std::cerr << "    Offending Ciphertext Depth: " << ct_in_out->cpp_ciphertext->depth() << std::endl;
+        }
+        if (pt_in && pt_in->cpp_plaintext) {
+            std::cerr << "    Offending Plaintext Depth: " << pt_in->cpp_plaintext->depth() << std::endl;
+        }
+    }
       catch (...) { std::cerr << "Add_Plain_Inplace Unknown Error" << std::endl;}
 }
 
@@ -223,38 +231,89 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Negate(HE_CKKS_ArithmeticOpe
 
 // --- Implementations for Multiplication (Pattern: check args, map options, call C++ method, wrap result if new object) ---
 void HEonGPU_CKKS_ArithmeticOperator_Multiply_Plain_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_out, const HE_CKKS_Plaintext* pt_in, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext || !pt_in || !pt_in->cpp_plaintext) return;
+    std::cout << "[C++ DEBUG] Entered HEonGPU_CKKS_ArithmeticOperator_Multiply_Plain_Inplace." << std::endl;
+
+    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext || !pt_in || !pt_in->cpp_plaintext) {
+        // Added a more descriptive error message here
+        std::cerr << "Multiply_Plain_Inplace Error: Received a null pointer for one of the arguments." << std::endl;
+        return;
+    }
+
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->multiply_plain_inplace(*(ct_in_out->cpp_ciphertext), *(pt_in->cpp_plaintext), cpp_options);
-    } catch (...) { /* error handling */ }
+    
+    // --- Modified error handling to print exceptions ---
+    } catch (const std::exception& e) {
+        // This will catch standard C++ exceptions (like std::invalid_argument) and print their messages.
+        std::cerr << "Multiply_Plain_Inplace caught a standard exception: " << e.what() << std::endl;
+        if (ct_in_out && ct_in_out->cpp_ciphertext) {
+            std::cerr << "    Offending Ciphertext Depth: " << ct_in_out->cpp_ciphertext->depth() << std::endl;
+        }
+        if (pt_in && pt_in->cpp_plaintext) {
+            std::cerr << "    Offending Plaintext Depth: " << pt_in->cpp_plaintext->depth() << std::endl;
+        }
+    } catch (...) {
+        // This is a catch-all for any other non-standard exceptions.
+        std::cerr << "Multiply_Plain_Inplace caught an unknown exception." << std::endl;
+    }
 }
 
+
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Multiply_Plain(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, const HE_CKKS_Plaintext* pt_in, HE_CKKS_Ciphertext* ct_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in || !ct_in->cpp_ciphertext || !pt_in || !pt_in->cpp_plaintext) return nullptr;
+    if (!op || !op->cpp_arith_op || !ct_in || !ct_in->cpp_ciphertext || !pt_in || !pt_in->cpp_plaintext) {
+        std::cerr << "Multiply_Plain Error: Received a null pointer for one of the arguments." << std::endl;
+        return nullptr;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->multiply_plain(*(ct_in->cpp_ciphertext), *(pt_in->cpp_plaintext), *(ct_out->cpp_ciphertext), cpp_options);
         
         return ct_out;
-    } catch (...) { return nullptr; }
+    } catch (const std::exception& e) {
+        // This will catch standard C++ exceptions and print their messages.
+        std::cerr << "Multiply_Plain caught a standard exception: " << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        // This is a catch-all for any other non-standard exceptions.
+        std::cerr << "Multiply_Plain caught an unknown exception." << std::endl;
+        return nullptr;
+    }
 }
 
+
 void HEonGPU_CKKS_ArithmeticOperator_Multiply_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct1_in_out, const HE_CKKS_Ciphertext* ct2_in, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct1_in_out || !ct1_in_out->cpp_ciphertext || !ct2_in || !ct2_in->cpp_ciphertext) return;
+    if (!op || !op->cpp_arith_op || !ct1_in_out || !ct1_in_out->cpp_ciphertext || !ct2_in || !ct2_in->cpp_ciphertext) {
+        std::cerr << "Multiply_Inplace Error: Received a null pointer for one of the arguments." << std::endl;
+        return;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->multiply_inplace(*(ct1_in_out->cpp_ciphertext), *(ct2_in->cpp_ciphertext), cpp_options);
-    } catch (...) { /* error handling */ }
+    } catch (const std::exception& e) {
+        std::cerr << "Multiply_Inplace caught a standard exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Multiply_Inplace caught an unknown exception." << std::endl;
+    }
 }
 
+
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Multiply(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct1_in, const HE_CKKS_Ciphertext* ct2_in, HE_CKKS_Ciphertext* ct_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct1_in || !ct1_in->cpp_ciphertext || !ct2_in || !ct2_in->cpp_ciphertext || !ct_out || !ct_out->cpp_ciphertext) return nullptr;
+    if (!op || !op->cpp_arith_op || !ct1_in || !ct1_in->cpp_ciphertext || !ct2_in || !ct2_in->cpp_ciphertext || !ct_out || !ct_out->cpp_ciphertext) {
+        std::cerr << "Multiply Error: Received a null pointer for one of the arguments." << std::endl;
+        return nullptr;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->multiply(*(ct1_in->cpp_ciphertext), *(ct2_in->cpp_ciphertext), *(ct_out->cpp_ciphertext), cpp_options);
         return ct_out;
-    } catch (...) { return nullptr; }
+    } catch (const std::exception& e) {
+        std::cerr << "Multiply caught a standard exception: " << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        std::cerr << "Multiply caught an unknown exception." << std::endl;
+        return nullptr;
+    }
 }
 
 
@@ -270,59 +329,158 @@ void HEonGPU_CKKS_ArithmeticOperator_Relinearize_Inplace(HE_CKKS_ArithmeticOpera
 
 // --- ModDrop / Rescale ---
 void HEonGPU_CKKS_ArithmeticOperator_ModDrop_Ciphertext_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext) return;
+    // Initial null pointer check remains the same
+    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext) {
+        std::cerr << "ModDrop_Inplace Error: Invalid operator or ciphertext pointer." << std::endl;
+        return;
+    }
+
+    // --- Add this try...catch block for detailed error reporting ---
     try {
+        std::cout << "    in HEonGPU_CKKS_ArithmeticOperator_ModDrop_Ciphertext_Inplace: " << std::endl;
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->mod_drop_inplace(*(ct_in_out->cpp_ciphertext), cpp_options);
-    } catch (...) { /* error handling */ }
+        std::cout << "    rescale_required: "
+                  << ct_in_out->cpp_ciphertext->rescale_required() << std::endl;
+        std::cout << "    relinearization_required: "
+                  << ct_in_out->cpp_ciphertext->relinearization_required() << std::endl;
+    } catch (const std::exception& e) {
+        // This will print the specific C++ exception message to your console.
+        std::cerr << "[C++ EXCEPTION] A standard exception was caught in ModDrop_Inplace: "
+                  << e.what() << std::endl;
+    } catch (...) {
+        // This is a fallback for non-standard exceptions.
+        std::cerr << "[C++ EXCEPTION] An unknown exception was caught in ModDrop_Inplace." << std::endl;
+    }
 }
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_ModDrop_Ciphertext(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, HE_CKKS_Ciphertext* ct_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in || !ct_in->cpp_ciphertext) return nullptr;
+    if (!op || !op->cpp_arith_op || !ct_in || !ct_in->cpp_ciphertext) {
+        std::cerr << "ModDrop_Ciphertext Error: Received a null pointer for one of the arguments." << std::endl;
+        return nullptr;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->mod_drop(*(ct_in->cpp_ciphertext), *(ct_out->cpp_ciphertext), cpp_options);
         
         return ct_out;
-    } catch (...) { return nullptr; }
+    } catch (const std::exception& e) {
+        // This will catch standard C++ exceptions and print their messages.
+        std::cerr << "ModDrop_Ciphertext caught a standard exception: " << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        // This is a catch-all for any other non-standard exceptions.
+        std::cerr << "ModDrop_Ciphertext caught an unknown exception." << std::endl;
+        return nullptr;
+    }
 }
 
+
 void HEonGPU_CKKS_ArithmeticOperator_ModDrop_Plaintext_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Plaintext* pt_in_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !pt_in_out || !pt_in_out->cpp_plaintext) return;
+    if (!op || !op->cpp_arith_op || !pt_in_out || !pt_in_out->cpp_plaintext) {
+        std::cerr << "ModDrop_Plaintext_Inplace Error: Received a null pointer for one of the arguments." << std::endl;
+        return;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->mod_drop_inplace(*(pt_in_out->cpp_plaintext), cpp_options);
-    } catch (...) { /* error handling */ }
+    } catch (const std::exception& e) {
+        std::cerr << "ModDrop_Plaintext_Inplace caught a standard exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "ModDrop_Plaintext_Inplace caught an unknown exception." << std::endl;
+    }
 }
 
 
 void HEonGPU_CKKS_ArithmeticOperator_Rescale_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_out, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext) return;
+    // Initial null pointer check remains the same
+    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext) {
+        std::cerr << "Rescale_Inplace Error: Invalid operator or ciphertext pointer." << std::endl;
+        return;
+    }
+
+
     try {
+        
+        std::cout << "    in HEonGPU_CKKS_ArithmeticOperator_Rescale_Inplace: " << std::endl;
+        std::cout << "  ct_in pointer: " << ct_in_out << std::endl;
+        if (ct_in_out) std::cout << "  ct_in->cpp_ciphertext: " << ct_in_out->cpp_ciphertext << std::endl;
+        std::cout << "    rescale_required: "
+                  << ct_in_out->cpp_ciphertext->rescale_required() << std::endl;
+        std::cout << "    relinearization_required: "
+                  << ct_in_out->cpp_ciphertext->relinearization_required() << std::endl;
+        if(!ct_in_out->cpp_ciphertext->rescale_required()){
+            return;
+        }
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->rescale_inplace(*(ct_in_out->cpp_ciphertext), cpp_options);
-    } catch (...) { /* error handling */ }
+    } catch (const std::exception& e) {
+        // This will print the specific C++ exception message to your console.
+        std::cerr << "[C++ EXCEPTION] A standard exception was caught in Rescale_Inplace: "
+                  << e.what() << std::endl;
+    } catch (...) {
+        // This is a fallback for non-standard exceptions.
+        std::cerr << "[C++ EXCEPTION] An unknown exception was caught in Rescale_Inplace." << std::endl;
+    }
 }
+
 
 
 
 // --- Rotation / Conjugation ---
 void HEonGPU_CKKS_ArithmeticOperator_Rotate_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_out, int steps, HE_CKKS_GaloisKey* galois_key_c, const C_ExecutionOptions* options_c) {
-    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext || !galois_key_c || !galois_key_c->cpp_galoiskey) return;
+    if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext || !galois_key_c || !galois_key_c->cpp_galoiskey) {
+        std::cerr << "Rotate_Inplace Error: Received a null pointer for one of the arguments." << std::endl;
+        return;
+    }
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
         op->cpp_arith_op->rotate_rows_inplace(*(ct_in_out->cpp_ciphertext), *(galois_key_c->cpp_galoiskey), steps, cpp_options);
-    } catch (...) { /* error handling */ }
+    
+    } catch (const std::exception& e) {
+        // This will catch standard C++ exceptions and print their messages.
+        std::cerr << "Rotate_Inplace caught a standard exception: " << e.what() << std::endl;
+    } catch (...) {
+        // This is a catch-all for any other non-standard exceptions.
+        std::cerr << "Rotate_Inplace caught an unknown exception." << std::endl;
+    }
 }
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Rotate(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, HE_CKKS_Ciphertext* ct_out, int steps, HE_CKKS_GaloisKey* galois_key_c, const C_ExecutionOptions* options_c) {
+    std::cout << "[C++ DEBUG] Rotate Check:" << std::endl;
+    std::cout << "  op pointer: " << op << std::endl;
+    if (op) std::cout << "  op->cpp_arith_op: " << op->cpp_arith_op << std::endl;
+    std::cout << "  ct_in pointer: " << ct_in << std::endl;
+    if (ct_in) std::cout << "  ct_in->cpp_ciphertext: " << ct_in->cpp_ciphertext << std::endl;
+    if (ct_in && ct_in->cpp_ciphertext) {
+        std::cout << "  [C++ DEBUG] Flags before Rotate:" << std::endl;
+        std::cout << "    rescale_required: "
+                  << ct_in->cpp_ciphertext->rescale_required() << std::endl;
+        std::cout << "    relinearization_required: "
+                  << ct_in->cpp_ciphertext->relinearization_required() << std::endl;
+    }
+
+
+    std::cout << "  galois_key_c pointer: " << galois_key_c << std::endl;
+    if (galois_key_c) std::cout << "  galois_key_c->cpp_galoiskey: " << galois_key_c->cpp_galoiskey << std::endl;
+
+    
     if (!op || !op->cpp_arith_op || !ct_in || !ct_in->cpp_ciphertext || !galois_key_c || !galois_key_c->cpp_galoiskey) return nullptr;
     try {
         heongpu::ExecutionOptions cpp_options = map_c_to_cpp_execution_options_op(options_c);
-        op->cpp_arith_op->rotate_rows(*(ct_in->cpp_ciphertext), *(ct_out->cpp_ciphertext), *(galois_key_c->cpp_galoiskey),steps, cpp_options);
-        
+        op->cpp_arith_op->rotate_rows(*(ct_in->cpp_ciphertext), *(ct_out->cpp_ciphertext), *(galois_key_c->cpp_galoiskey), steps, cpp_options);
         return ct_out;
-    } catch (...) { return nullptr; }
+    } catch (const std::exception& e) {
+        // This will print the actual C++ error message to your console
+        std::cerr << "[C++ EXCEPTION] A standard exception was caught in Rotate: "
+                  << e.what() << std::endl;
+        return nullptr;
+    } catch (...) {
+        // This is a fallback for non-standard exceptions
+        std::cerr << "[C++ EXCEPTION] An unknown exception was caught in Rotate." << std::endl;
+        return nullptr;
+    }
+
 }
 
 

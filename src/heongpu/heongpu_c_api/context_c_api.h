@@ -112,6 +112,9 @@ typedef struct {
     uint64_t high;
 } C_Data128;
 
+//CUDA profiling functions
+
+
 
 // --- CKKS Context Functions ---
 /**

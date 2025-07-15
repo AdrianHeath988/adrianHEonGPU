@@ -79,6 +79,7 @@ bool HEonGPU_CKKS_Ciphertext_IsInNttDomain(HE_CKKS_Ciphertext* ciphertext);
  */
 bool HEonGPU_CKKS_Ciphertext_Is_On_Device(HE_CKKS_Ciphertext* ciphertext);
 
+int HEonGPU_CKKS_Ciphertext_GetDepth(HE_CKKS_Ciphertext* ciphertext);
 /**
  * @brief Copies the ciphertext's coefficient data to a user-provided host buffer.
  * The buffer must be large enough to hold all data (ring_size * cipher_size elements).
