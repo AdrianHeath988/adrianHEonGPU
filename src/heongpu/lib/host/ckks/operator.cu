@@ -1117,6 +1117,10 @@ namespace heongpu
         Galoiskey<Scheme::CKKS>& galois_key, int shift,
         const cudaStream_t stream)
     {
+        // std::cout << "[C++ DEBUG] ==> ==> ==> ==> Entered rotate_ckks_method_II." << std::endl;
+        // std::cout << "[C++ DEBUG]                   - Arg 'shift': " << shift << std::endl;
+
+
         int galoiselt = steps_to_galois_elt(shift, n, galois_key.group_order_);
         bool key_exist = (galois_key.storage_type_ == storage_type::DEVICE)
                              ? (galois_key.device_location_.find(galoiselt) !=
@@ -1125,11 +1129,16 @@ namespace heongpu
                                 galois_key.host_location_.end());
         if (key_exist)
         {
+            // std::cout << "[C++ DEBUG]                   - Galois key exists. Calling apply_galois_ckks_method_II directly." << std::endl;
+            // std::cout << "[C++ DEBUG]                     - galoiselt: " << galoiselt << std::endl;
+
             apply_galois_ckks_method_II(input1, output, galois_key, galoiselt,
                                         stream);
         }
         else
         {
+            // std::cout << "[C++ DEBUG]                   - Galois key does not exist. Decomposing rotation." << std::endl;
+
             std::vector<int> required_galoiselt;
             int shift_num = abs(shift);
             int negative = (shift < 0) ? (-1) : 1;
@@ -1153,11 +1162,16 @@ namespace heongpu
             Ciphertext<Scheme::CKKS>& in_data = input1;
             for (auto& galois_elt : required_galoiselt)
             {
+                // std::cout << "[C++ DEBUG]                   - Decomposition step " <<  required_galoiselt.size() 
+                //       << ": Calling apply_galois_ckks_method_II." << std::endl;
+                // std::cout << "[C++ DEBUG]                     - galois_elt: " << galois_elt << std::endl;
+
                 apply_galois_ckks_method_II(in_data, output, galois_key,
                                             galois_elt, stream);
                 in_data = output;
             }
         }
+        // std::cout << "[C++ DEBUG] <== <== <== <== Exiting rotate_ckks_method_II." << std::endl;
     }
 
     __host__ void HEOperator<Scheme::CKKS>::apply_galois_ckks_method_I(
@@ -1165,6 +1179,10 @@ namespace heongpu
         Galoiskey<Scheme::CKKS>& galois_key, int galois_elt,
         const cudaStream_t stream)
     {
+        // std::cout << "[C++ DEBUG] ==> ==> ==> ==> ==> Entered apply_galois_ckks_method_I." << std::endl;
+        // std::cout << "[C++ DEBUG]                       - Arg 'galois_elt': " << galois_elt << std::endl;
+        // std::cout << "[C++ DEBUG]                       - Input 'input1' depth: " << input1.depth() << ", scale: " << input1.scale() << std::endl;
+
         int first_rns_mod_count = Q_prime_size_;
         int current_rns_mod_count = Q_prime_size_ - input1.depth_;
 
@@ -1191,10 +1209,22 @@ namespace heongpu
             .zero_padding = false,
             .mod_inverse = n_inverse_->data(),
             .stream = stream};
+        
+        //std::cout << "[C++ DEBUG]                       - Step 1: Performing Inverse NTT on input." << std::endl;
 
         gpuntt::GPU_NTT(input1.data(), temp0_rotation, intt_table_->data(),
                         modulus_->data(), cfg_intt, 2 * current_decomp_count,
                         current_decomp_count);
+
+        // std::cout << "[C++ DEBUG]                       - Step 2: Preparing to launch ckks_duplicate_kernel." << std::endl;
+        // std::cout << "                          - Arg 'temp0_rotation' (source): " << static_cast<const void*>(temp0_rotation) << std::endl;
+        // std::cout << "                          - Arg 'temp2_rotation' (dest): " << static_cast<const void*>(temp2_rotation) << std::endl;
+        // std::cout << "                          - Arg 'modulus_->data()': " << static_cast<const void*>(modulus_->data()) << std::endl;
+        // std::cout << "                          - Arg 'n_power': " << n_power << std::endl;
+        // std::cout << "                          - Arg 'first_rns_mod_count': " << first_rns_mod_count << std::endl;
+        // std::cout << "                          - Arg 'current_rns_mod_count': " << current_rns_mod_count << std::endl;
+        // std::cout << "                          - Arg 'current_decomp_count': " << current_decomp_count << std::endl;
+
 
         // TODO: make it efficient
         ckks_duplicate_kernel<<<dim3((n >> 8), current_decomp_count, 1), 256, 0,
@@ -1217,11 +1247,14 @@ namespace heongpu
             location += counter;
             counter--;
         }
+        //std::cout << "[C++ DEBUG]                       - Step 3: Performing Forward NTT on duplicated data." << std::endl;
+
         gpuntt::GPU_NTT_Modulus_Ordered_Inplace(
             temp2_rotation, ntt_table_->data(), modulus_->data(), cfg_ntt,
             current_decomp_count * current_rns_mod_count, current_rns_mod_count,
             new_prime_locations + location);
 
+        //std::cout << "[C++ DEBUG]                       - Step 4: Launching multiply_accumulate_leveled_kernel (MultSum)." << std::endl;
         // MultSum
         // TODO: make it efficient
         if (galois_key.storage_type_ == storage_type::DEVICE)
@@ -1244,11 +1277,14 @@ namespace heongpu
                 n_power);
             HEONGPU_CUDA_CHECK(cudaGetLastError());
         }
+        //std::cout << "[C++ DEBUG]                       - Step 5: Performing Inverse NTT on accumulated data." << std::endl;
 
         gpuntt::GPU_NTT_Modulus_Ordered_Inplace(
             temp3_rotation, intt_table_->data(), modulus_->data(), cfg_intt,
             2 * current_rns_mod_count, current_rns_mod_count,
             new_prime_locations + location);
+        
+        //std::cout << "[C++ DEBUG]                       - Step 6: Launching divide_round_lastq_permute_ckks_kernel (ModDown + Permute)." << std::endl;
 
         // ModDown + Permute
         divide_round_lastq_permute_ckks_kernel<<<
@@ -1259,12 +1295,14 @@ namespace heongpu
             current_decomp_count, first_rns_mod_count, first_decomp_count,
             P_size_);
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        //std::cout << "[C++ DEBUG]                       - Step 7: Performing final Forward NTT on output." << std::endl;
 
         gpuntt::GPU_NTT_Inplace(output_memory.data(), ntt_table_->data(),
                                 modulus_->data(), cfg_ntt,
                                 2 * current_decomp_count, current_decomp_count);
 
         output.memory_set(std::move(output_memory));
+        //std::cout << "[C++ DEBUG] <== <== <== <== <== Exiting apply_galois_ckks_method_I." << std::endl;
     }
 
     __host__ void HEOperator<Scheme::CKKS>::apply_galois_ckks_method_II(
@@ -2152,6 +2190,9 @@ namespace heongpu
         std::vector<std::vector<std::vector<int>>>& diags_matrices_bsgs_,
         Galoiskey<Scheme::CKKS>& galois_key, const ExecutionOptions& options)
     {
+        std::cout << "[C++ DEBUG] ==> ==> Entered multiply_matrix." << std::endl;
+        std::cout << "[C++ DEBUG]           - Input 'cipher' depth: " << cipher.depth() << ", scale: " << cipher.scale() << std::endl;
+
         cudaStream_t old_stream = cipher.stream();
         cipher.switch_stream(
             options.stream_); // TODO: Change copy and assign structure!
@@ -2163,18 +2204,22 @@ namespace heongpu
         int matrix_count = diags_matrices_bsgs_.size();
         for (int m = (matrix_count - 1); - 1 < m; m--)
         {
+            std::cout << "[C++ DEBUG]           - Processing matrix " << m << " of " << matrix_count << "." << std::endl;
             int n1 = diags_matrices_bsgs_[m][0].size();
             int current_level = result.depth_;
             int current_decomp_count = (Q_size_ - current_level);
-
+            std::cout << "[C++ DEBUG]           - Calling fast_single_hoisting_rotation_ckks for baby-step giant-step rotations." << std::endl;
             DeviceVector<Data64> rotated_result =
                 fast_single_hoisting_rotation_ckks(
                     result, diags_matrices_bsgs_[m][0], n1, galois_key,
                     options.stream_);
+            
+            std::cout << "[C++ DEBUG]           - Finished hoisting rotations. Starting inner loop." << std::endl;
 
             int counter = 0;
             for (int j = 0; j < diags_matrices_bsgs_[m].size(); j++)
             {
+                std::cout << "[C++ DEBUG]               - Inner loop: Processing sub-matrix " << j << "." << std::endl;
                 int real_shift = diags_matrices_bsgs_[m][j][0];
 
                 Ciphertext<Scheme::CKKS> inner_sum =
@@ -2182,6 +2227,17 @@ namespace heongpu
 
                 int matrix_plaintext_location = (counter * Q_size_) << n_power;
                 int inner_n1 = diags_matrices_bsgs_[m][j].size();
+
+                std::cout << "[C++ KERNEL DEBUG] Preparing to launch cipherplain_multiply_accumulate_kernel." << std::endl;
+                std::cout << "                   - rotated_result.data(): " << static_cast<const void*>(rotated_result.data()) << std::endl;
+                std::cout << "                   - matrix[m].data() + offset: " << static_cast<const void*>(matrix[m].data() + matrix_plaintext_location) << std::endl;
+                std::cout << "                   - inner_sum.data(): " << static_cast<const void*>(inner_sum.data()) << std::endl;
+                std::cout << "                   - modulus_->data(): " << static_cast<const void*>(modulus_->data()) << std::endl;
+                std::cout << "                   - inner_n1: " << inner_n1 << std::endl;
+                std::cout << "                   - current_decomp_count: " << current_decomp_count << std::endl;
+                std::cout << "                   - Q_size_: " << Q_size_ << std::endl;
+                std::cout << "                   - n_power: " << n_power << std::endl;
+
 
                 cipherplain_multiply_accumulate_kernel<<<
                     dim3((n >> 8), current_decomp_count, 2), 256, 0,
@@ -2191,7 +2247,7 @@ namespace heongpu
                     inner_sum.data(), modulus_->data(), inner_n1,
                     current_decomp_count, Q_size_, n_power);
                 HEONGPU_CUDA_CHECK(cudaGetLastError());
-
+                std::cout << "[C++ KERNEL DEBUG] Finished cipherplain_multiply_accumulate_kernel." << std::endl; 
                 counter = counter + inner_n1;
 
                 inner_sum.scheme_ = scheme_;
@@ -2205,9 +2261,15 @@ namespace heongpu
                 inner_sum.relinearization_required_ =
                     result.relinearization_required_;
                 inner_sum.ciphertext_generated_ = true;
+                std::cout << "[C++ KERNEL DEBUG] Launching rotate_rows_inplace." << std::endl; 
+                std::cout << "[C++ DEBUG]                 - Arg 'inner_sum' depth: " << inner_sum.depth()
+                          << ", scale: " << inner_sum.scale()
+                          << ", rescale_req: " << inner_sum.rescale_required()
+                          << ", relin_req: " << inner_sum.relinearization_required() << std::endl;
+                std::cout << "[C++ DEBUG]                 - Arg 'real_shift': " << real_shift << std::endl;
 
                 rotate_rows_inplace(inner_sum, galois_key, real_shift, options);
-
+                std::cout << "[C++ KERNEL DEBUG] Finished rotate_rows_inplace." << std::endl; 
                 if (j == 0)
                 {
                     cudaStream_t old_stream2 = inner_sum.stream();
@@ -2329,9 +2391,13 @@ namespace heongpu
                                             Galoiskey<Scheme::CKKS>& galois_key,
                                             const ExecutionOptions& options)
     {
+        std::cout << "[C++ DEBUG] ==> Entered coeff_to_slot." << std::endl;
+        std::cout << "[C++ DEBUG]     - Input 'cipher' depth: " << cipher.depth() << ", scale: " << cipher.scale() << std::endl;
         Ciphertext<Scheme::CKKS> c1;
         if (less_key_mode_)
         {
+            std::cout << "[C++ DEBUG]     - Calling multiply_matrix_less_memory." << std::endl;
+
             c1 = multiply_matrix_less_memory(
                 cipher, V_inv_matrixs_rotated_encoded_,
                 diags_matrices_inv_bsgs_, real_shift_n2_inv_bsgs_, galois_key,
@@ -2339,31 +2405,44 @@ namespace heongpu
         }
         else
         {
+            std::cout << "[C++ DEBUG]     - Calling multiply_matrix." << std::endl;
+
             c1 = multiply_matrix(cipher, V_inv_matrixs_rotated_encoded_,
                                  diags_matrices_inv_bsgs_, galois_key, options);
         }
 
+        std::cout << "[C++ DEBUG]     - After multiply_matrix, 'c1' depth: " << c1.depth() << ", scale: " << c1.scale() << std::endl;
+        std::cout << "[C++ DEBUG]     - Calling conjugate." << std::endl;
+
         Ciphertext<Scheme::CKKS> c2 = operator_ciphertext(0, options.stream_);
         conjugate(c1, c2, galois_key, options); // conjugate
+
+        std::cout << "[C++ DEBUG]     - After conjugate, 'c2' depth: " << c2.depth() << ", scale: " << c2.scale() << std::endl;
+        std::cout << "[C++ DEBUG]     - Performing final additions/subtractions and rescaling." << std::endl;
+
+
 
         Ciphertext<Scheme::CKKS> result0 =
             operator_ciphertext(0, options.stream_);
         add(c1, c2, result0, options);
 
         int current_decomp_count = Q_size_ - result0.depth_;
+
         cipherplain_multiplication_kernel<<<
             dim3((n >> 8), current_decomp_count, 2), 256, 0, options.stream_>>>(
             result0.data(), encoded_constant_1over2_.data(), result0.data(),
             modulus_->data(), n_power);
         result0.scale_ = result0.scale_ * scale_boot_;
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        std::cout << "[C++ DEBUG]     - Finished Multiplication." << std::endl;
+        std::cout << "[C++ DEBUG]     - After Multiplication, 'result0' depth: " << result0.depth() << ", scale: " << result0.scale() << std::endl;
         result0.rescale_required_ = true;
         rescale_inplace(result0, options);
-
+        std::cout << "[C++ DEBUG]     - Finished Rescale." << std::endl;
         Ciphertext<Scheme::CKKS> result1 =
             operator_ciphertext(0, options.stream_);
         sub(c1, c2, result1, options);
-
+        std::cout << "[C++ DEBUG]     - Finished Sub." << std::endl;
         current_decomp_count = Q_size_ - result1.depth_;
         cipherplain_multiplication_kernel<<<
             dim3((n >> 8), current_decomp_count, 2), 256, 0, options.stream_>>>(
@@ -2371,12 +2450,15 @@ namespace heongpu
             result1.data(), modulus_->data(), n_power);
         result1.scale_ = result1.scale_ * scale_boot_;
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        std::cout << "[C++ DEBUG]     - Finioshed Multiplication." << std::endl;
         result1.rescale_required_ = true;
         rescale_inplace(result1, options);
-
+            
         std::vector<Ciphertext<Scheme::CKKS>> result;
         result.push_back(std::move(result0));
         result.push_back(std::move(result1));
+        
+        std::cout << "[C++ DEBUG] <== Exiting coeff_to_slot." << std::endl;
 
         return result;
     }
@@ -3813,6 +3895,7 @@ namespace heongpu
         Ciphertext<Scheme::CKKS>& input1, Galoiskey<Scheme::CKKS>& galois_key,
         Relinkey<Scheme::CKKS>& relin_key, const ExecutionOptions& options)
     {
+        std::cout << "\n[C++ DEBUG] Entered regular_bootstrapping." << std::endl;
         if (!boot_context_generated_)
         {
             throw std::invalid_argument(
@@ -3847,6 +3930,9 @@ namespace heongpu
             .reduction_poly = gpuntt::ReductionPolynomial::X_N_plus,
             .zero_padding = false,
             .stream = options.stream_};
+        
+        std::cout << "[C++ DEBUG] --> STAGE 1: Modulus Raising <--" << std::endl;
+
 
         DeviceVector<Data64> input_intt_poly(2 * n, options.stream_);
         input_storage_manager(
@@ -3870,9 +3956,13 @@ namespace heongpu
                                 modulus_->data(), cfg_ntt, 2 * Q_size_,
                                 Q_size_);
 
+        std::cout << "[C++ DEBUG] --> STAGE 2: CoeffToSlot Transformation <--" << std::endl;
+
         // Coeff to slot
         std::vector<heongpu::Ciphertext<Scheme::CKKS>> enc_results =
             coeff_to_slot(c_raised, galois_key, options_inner); // c_raised
+
+        std::cout << "[C++ DEBUG] --> STAGE 3: Homomorphic Exponentiation <--" << std::endl;
 
         // Exponentiate
         Ciphertext<Scheme::CKKS> ciph_neg_exp0 =
@@ -3884,6 +3974,8 @@ namespace heongpu
             operator_ciphertext(0, options_inner.stream_);
         Ciphertext<Scheme::CKKS> ciph_exp1 =
             exp_scaled(enc_results[1], relin_key, options_inner);
+
+        std::cout << "[C++ DEBUG] --> STAGE 4: Sine Computation and Scaling <--" << std::endl;
 
         // Compute sine
         Ciphertext<Scheme::CKKS> ciph_sin0 =
@@ -3921,10 +4013,14 @@ namespace heongpu
         ciph_sin1.rescale_required_ = true;
         rescale_inplace(ciph_sin1, options_inner);
 
+        std::cout << "[C++ DEBUG] --> STAGE 5: SlotToCoeff Transformation <--" << std::endl;
+
         // Slot to coeff
         Ciphertext<Scheme::CKKS> StoC_results =
             slot_to_coeff(ciph_sin0, ciph_sin1, galois_key, options_inner);
         StoC_results.scale_ = scale_boot_;
+        
+        std::cout << "[C++ DEBUG] Finished regular_bootstrapping successfully." << std::endl;
 
         return StoC_results;
     }

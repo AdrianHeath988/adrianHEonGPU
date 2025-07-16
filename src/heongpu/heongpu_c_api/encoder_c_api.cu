@@ -11,7 +11,7 @@
 #include <vector>
 #include <iostream> // For error logging
 #include <new>      // For std::nothrow
-
+#include <cuda_runtime.h>
 // Define the opaque struct to hold the actual C++ HEEncoder object
 
 typedef struct HE_CKKS_Encoder_s HE_CKKS_Encoder;
@@ -99,6 +99,28 @@ int HEonGPU_CKKS_Encoder_Encode_Double(HE_CKKS_Encoder* encoder,
                                        size_t message_len,
                                        double scale,
                                        const C_ExecutionOptions* c_options) { // Parameter name matches .h
+
+
+
+    // std::cout << "--- Entering HEonGPU_CKKS_Encoder_Encode_Double ---" << std::endl;
+    // std::cout << "  encoder: " << encoder << std::endl;
+    // std::cout << "  pt: " << pt << std::endl;
+    // std::cout << "  message_data address: " << message_data << std::endl;
+    // std::cout << "  message_len: " << message_len << std::endl;
+    // if (message_data && message_len > 0) {
+    //     std::cout << "  message_data contents: [";
+    //     for (size_t i = 0; i < 10; ++i) {
+    //         std::cout << message_data[i] << (i == message_len - 1 ? "" : ", ");
+    //     }
+    //     std::cout << "]" << std::endl;
+    // } else {
+    //     std::cout << "  message_data contents: null or empty" << std::endl;
+    // }
+    // std::cout << "  scale: " << scale << std::endl;
+    // std::cout << "  c_options: " << c_options << std::endl;
+    // std::cout << "--------------------------------------------------" << std::endl;
+
+
     if (!encoder || !encoder->cpp_encoder || !pt || (message_len > 0 && !message_data)) {
         std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Encode_Double." << std::endl;
         return -1; // Error for invalid pointers or message data for non-zero length
@@ -119,10 +141,12 @@ int HEonGPU_CKKS_Encoder_Encode_Double(HE_CKKS_Encoder* encoder,
         // so an empty vector will be passed if message_len is 0.
 
         heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
-
+        
         // Call the C++ encode method that takes std::vector<double> and ExecutionOptions
         encoder->cpp_encoder->encode(*cpp_pt, cpp_message, scale, cpp_exec_options);
         
+        
+
         return 0; // Success
     } catch (const std::invalid_argument& e) { // Catch specific known exceptions if possible
         std::cerr << "HEonGPU_CKKS_Encoder_Encode_Double failed (invalid argument): " << e.what() << std::endl;
@@ -177,21 +201,100 @@ int HEonGPU_CKKS_Encoder_Decode_Double(HE_CKKS_Encoder* encoder,
         std::cerr << "Error: Invalid argument(s) to HEonGPU_CKKS_Encoder_Decode_Double." << std::endl;
         return -1; // Error
     }
-    heongpu::Plaintext<heongpu::Scheme::CKKS>* cpp_pt = get_cpp_plaintext(pt);
+    HE_CKKS_Plaintext* pt_clone = HEonGPU_CKKS_Plaintext_Clone(pt);
+    heongpu::Plaintext<heongpu::Scheme::CKKS>* cpp_pt = get_cpp_plaintext(pt_clone);
     if (!cpp_pt) return -1;
 
     try {
-        heongpu::HostVector<double> cpp_message_vec; // HEEncoder::decode_ckks populates this
+        // std::cout << "--- Inspecting Raw Plaintext Data ---" << std::endl;
+        // uint64_t* device_ptr = HEonGPU_CKKS_Plaintext_GetData(pt_clone);
+
+        // if (!device_ptr) {
+        //     std::cerr << "Failed to get plaintext data pointer." << std::endl;
+        // }
+
+
+        // const int values_to_print = 10;
+        // std::vector<uint64_t> host_buffer(values_to_print);
+        // cudaError_t cuda_status = cudaMemcpy(
+        //     host_buffer.data(),                        // Destination (CPU buffer)
+        //     device_ptr,                                // Source (GPU pointer)
+        //     values_to_print * sizeof(uint64_t),        // Total bytes to copy
+        //     cudaMemcpyDeviceToHost                     // Direction of copy
+        // );
+        // if (cuda_status == cudaSuccess) {
+        //     std::cout << "First 10 raw encoded values (from GPU):" << std::endl;
+        //     for (int i = 0; i < values_to_print; ++i) {
+        //         std::cout << "Value " << i << ": " << host_buffer[i] << std::endl;
+        //     }
+        // } else {
+        //     std::cerr << "cudaMemcpy failed: " << cudaGetErrorString(cuda_status) << std::endl;
+        // }
+
+        // std::cout << "------------------------------------" << std::endl;
+        // std::cout << "Plaintext Size: " << HEonGPU_CKKS_Plaintext_GetPlainSize(pt_clone) << std::endl;
+        // std::cout << "Plaintext Depth: " << HEonGPU_CKKS_Plaintext_GetDepth(pt_clone) << std::endl;
+        // std::cout << "Plaintext Scale: " << HEonGPU_CKKS_Plaintext_GetScale(pt_clone) << std::endl;
+        // std::cout << "Plaintext is in NTT Domain: " << std::boolalpha << HEonGPU_CKKS_Plaintext_IsInNttDomain(pt_clone) << std::endl;
+        // std::cout << "Plaintext is on Device: " << std::boolalpha << HEonGPU_CKKS_Plaintext_IsOnDevice(pt_clone) << std::endl;
+
+
+
+
+
+
+
+
+
+
+
+        std::vector<double> cpp_message_vec; // HEEncoder::decode_ckks populates this
         heongpu::ExecutionOptions cpp_exec_options = map_c_to_cpp_execution_options_enc(c_options);
         encoder->cpp_encoder->decode(cpp_message_vec, *cpp_pt, cpp_exec_options);
 
         size_t decoded_len = cpp_message_vec.size();
         size_t elements_to_copy = std::min(buffer_len, decoded_len);
+        // std::cout << "--- Debugging Post-Decode ---" << std::endl;
+        
+        // std::cout << "  Decoded vector size (decoded_len): " << decoded_len << std::endl;
+        // std::cout << "  encoder: " << encoder << std::endl;
+        // std::cout << "  pt_clone: " << pt_clone << std::endl;
+        // std::cout << "  pt: " << pt << std::endl;
+        // std::cout << "  Underlying cpp_pt address: " << cpp_pt << std::endl;
+        // if (decoded_len > 0) {
+        //     std::cout << "  Contents of cpp_message_vec: [";
+            
+        //     for (int i = 0; i < 10; ++i) {
+        //         std::cout << cpp_message_vec[i] << (i == 10 - 1 ? "" : ", ");
+        //     }
+        //     if (decoded_len > 10) {
+        //         std::cout << "...";
+        //     }
+        //     std::cout << "]" << std::endl;
+        // } else {
+        //     std::cout << "  cpp_message_vec is empty." << std::endl;
+        // }
+        // std::cout << "  Destination buffer capacity (buffer_len): " << buffer_len << std::endl;
+        // std::cout << "  Elements we will copy: " << elements_to_copy << std::endl;
+        // std::cout << "  Destination buffer address (message_buffer): " << (void*)message_buffer << std::endl;
+        // std::cout << "  Source vector data address: " << (void*)cpp_message_vec.data() << std::endl;
+        
+
 
         if (elements_to_copy > 0) {
             std::memcpy(message_buffer, cpp_message_vec.data(), elements_to_copy * sizeof(double));
         }
+
+        // std::cout << "  Check result DECODE:" << std::endl;
+        // std::cout <<"  total elements is: " << elements_to_copy << std::endl;
+        // std::cout << "  And the buffer is:" <<std::endl;
+        // for (int i=0;i<10;i++) {
+        //     std::cout << message_buffer[i] << " ";
+        // }
+        // std::cout << std::endl;
+        // std::cout << "-----------------------------" << std::endl;
         
+
         if (buffer_len < decoded_len) {
             std::cerr << "Warning: Decode_Double buffer was smaller than decoded message. Truncated." << std::endl;
         }

@@ -61,7 +61,9 @@ namespace heongpu
             {
                 throw std::invalid_argument("Scale out of bounds");
             }
-
+            std::cout << "--- C++ In-Function Debug ---" << std::endl;
+            std::cout << "  Message size: " << message.size() << std::endl;
+            std::cout << "  Internal slot_count_: " << slot_count_ << std::endl;
             if (message.size() > slot_count_)
                 throw std::invalid_argument(
                     "Vector size can not be higher than slot count!");

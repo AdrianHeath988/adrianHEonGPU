@@ -1292,10 +1292,21 @@ namespace heongpu
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x; // Ring Sizes
         int block_y = blockIdx.y; // Decomposition Modulus Count
-
+        int source_index = idx + (block_y << n_power) + ((current_decomp_mod_count << n_power));
+        int dest_index = 0; // Initialize to a default value
+        // if (idx == 0 && block_y == 0) {
+        //     printf("[CUDA KERNEL DEBUG] ckks_duplicate_kernel (thread 0, block_y 0):\n");
+        // }
         Data64 result_value = cipher[idx + (block_y << n_power) +
                                      ((current_decomp_mod_count << n_power))];
 
+        
+        // if (idx == 0 && block_y == 0) {
+        //     printf("    - n_power: %d, current_decomp_mod_count: %d\n", n_power, current_decomp_mod_count);
+        //     printf("    - Calculated source_index: %d\n", source_index);
+        //     printf("    - Value read from cipher[source_index]: %llu\n", (unsigned long long)result_value);
+        //     printf("    - current_rns_mod_count: %d\n", current_rns_mod_count);
+        // }
         int location = (current_rns_mod_count * block_y) << n_power;
         int level = first_rns_mod_count - current_rns_mod_count;
 
@@ -1315,6 +1326,11 @@ namespace heongpu
                 result_value, modulus[mod_index]);
 
             output[idx + (i << n_power) + location] = reduced_result;
+
+            if (idx == 0 && block_y == 0) {
+                // printf("    - Loop i=%d: mod_index=%d, dest_index=%d, reduced_result=%llu\n",
+                //     i, mod_index, dest_index, (unsigned long long)reduced_result);
+            }
         }
     }
 

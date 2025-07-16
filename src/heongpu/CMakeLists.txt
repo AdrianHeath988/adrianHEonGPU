@@ -76,6 +76,8 @@ add_library(heongpu_c_api SHARED
     heongpu_c_api/secretkey_c_api.h
     heongpu_c_api/serializer_c_api.cu
     heongpu_c_api/serializer_c_api.h
+    heongpu_c_api/shutdown_c_api.h
+    heongpu_c_api/shutdown_c_api.cu
 )
 target_link_libraries(heongpu_c_api PUBLIC # Or PRIVATE, depending on usage
     HEonGPU::heongpu # Links against the static heongpu library
@@ -109,6 +111,7 @@ install(FILES
     heongpu_c_api/publickey_c_api.h
     heongpu_c_api/secretkey_c_api.h
     heongpu_c_api/serializer_c_api.h
+    heongpu_c_api/shutdown_c_api.h
 DESTINATION include) 
 
 

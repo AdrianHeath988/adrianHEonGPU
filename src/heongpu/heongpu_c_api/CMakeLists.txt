@@ -44,6 +44,8 @@ add_library(heongpu_c_api SHARED
     secretkey_c_api.h
     serializer_c_api.cu
     serializer_c_api.h
+    shutdown_c_api.cu
+    shutdown_c_api.h
 )
 
 # Link against the main HEonGPU library.

@@ -40,6 +40,7 @@
 #include "tfhe/operator.cuh"
 
 #include "serializer.h"
+#include "memorypool.cuh"
 
 namespace heongpu
 {

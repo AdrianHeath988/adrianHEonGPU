@@ -66,13 +66,13 @@ class MemoryPool
     size_t get_free_host_pool_memory() const;
 
     ~MemoryPool();
+    void clean_pool();
 
   private:
     MemoryPool();
     MemoryPool(const MemoryPool&) = delete;
     MemoryPool& operator=(const MemoryPool&) = delete;
 
-    void clean_pool();
     size_t get_host_avaliable_memory() const;
     size_t get_decive_avaliable_memory() const;
     size_t roundup_256(size_t size) const;
