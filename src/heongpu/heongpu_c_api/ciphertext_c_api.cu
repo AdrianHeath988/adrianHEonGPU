@@ -227,7 +227,23 @@ HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Load(HE_CKKS_Context* context_c_api_
     } catch (...) { delete cpp_ct; delete c_api_ciphertext; return nullptr; }
 }
 
-
+HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Set_Scale(HE_CKKS_Ciphertext* ciphertext, double scale){
+    if (!ciphertext || !ciphertext->cpp_ciphertext) {
+        std::cerr << "Error: Invalid ciphertext pointer in HEonGPU_CKKS_Ciphertext_Set_Scale." << std::endl;
+        return 0; 
+    }
+    try {
+        ciphertext->cpp_ciphertext->set_scale(scale);
+        std::cout << "Scale has been set to " << scale << std::endl;
+        return ciphertext;
+    } catch (const std::exception& e) {
+        std::cerr << "HEonGPU_CKKS_Ciphertext_Set_Scale failed with C++ exception: " << e.what() << std::endl;
+        return 0; // Or error indicator
+    } catch (...) {
+        std::cerr << "HEonGPU_CKKS_Ciphertext_Set_Scale failed due to an unknown C++ exception." << std::endl;
+        return 0; // Or error indicator
+    }
+}
 // --- CKKS Ciphertext Getters ---
 
 int HEonGPU_CKKS_Ciphertext_GetRingSize(HE_CKKS_Ciphertext* ciphertext) {

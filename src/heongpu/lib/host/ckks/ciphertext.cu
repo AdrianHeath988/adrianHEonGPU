@@ -226,6 +226,11 @@ namespace heongpu
         }
     }
 
+    void Ciphertext<Scheme::CKKS>::set_scale(double scale)
+    {
+        scale_ = scale;
+    }
+
     void Ciphertext<Scheme::CKKS>::load(std::istream& is)
     {
         if ((!ciphertext_generated_))

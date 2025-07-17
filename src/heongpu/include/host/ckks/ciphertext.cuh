@@ -167,6 +167,13 @@ namespace heongpu
          * @return double Scaling factor.
          */
         inline double scale() const noexcept { return scale_; }
+        
+        /**
+         *  @brief Returns the scaling factor used for encoding in CKKS scheme (WARNING: UNSAFE).
+         *
+         * @return none.
+        */
+        void set_scale(double scale);
 
         /**
          * @brief Indicates whether rescaling is required for the ciphertext.

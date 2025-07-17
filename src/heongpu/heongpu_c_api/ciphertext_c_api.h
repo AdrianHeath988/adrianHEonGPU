@@ -35,6 +35,8 @@ int HEonGPU_CKKS_Ciphertext_Save(HE_CKKS_Ciphertext* ciphertext,
                                  unsigned char** out_bytes,
                                  size_t* out_len);
 
+HE_CKKS_Ciphertext* HEonGPU_CKKS_Ciphertext_Set_Scale(HE_CKKS_Ciphertext* ciphertext, double scale);
+
 // --- CKKS Ciphertext Getters ---
 
 /**
