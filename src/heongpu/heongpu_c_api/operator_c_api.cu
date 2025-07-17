@@ -429,6 +429,7 @@ void HEonGPU_CKKS_ArithmeticOperator_Rescale_Inplace(HE_CKKS_ArithmeticOperator*
 
 // --- Rotation / Conjugation ---
 void HEonGPU_CKKS_ArithmeticOperator_Rotate_Inplace(HE_CKKS_ArithmeticOperator* op, HE_CKKS_Ciphertext* ct_in_out, int steps, HE_CKKS_GaloisKey* galois_key_c, const C_ExecutionOptions* options_c) {
+    std::cerr  << "[C++ DEBUG] Rotate Inplace Check:" << std::endl;
     if (!op || !op->cpp_arith_op || !ct_in_out || !ct_in_out->cpp_ciphertext || !galois_key_c || !galois_key_c->cpp_galoiskey) {
         std::cerr << "Rotate_Inplace Error: Received a null pointer for one of the arguments." << std::endl;
         return;
@@ -447,7 +448,7 @@ void HEonGPU_CKKS_ArithmeticOperator_Rotate_Inplace(HE_CKKS_ArithmeticOperator* 
 }
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Rotate(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, HE_CKKS_Ciphertext* ct_out, int steps, HE_CKKS_GaloisKey* galois_key_c, const C_ExecutionOptions* options_c) {
-    std::cout << "[C++ DEBUG] Rotate Check:" << std::endl;
+    std::cerr << "[C++ DEBUG] Rotate Check:" << std::endl;
     std::cout << "  op pointer: " << op << std::endl;
     if (op) std::cout << "  op->cpp_arith_op: " << op->cpp_arith_op << std::endl;
     std::cout << "  ct_in pointer: " << ct_in << std::endl;

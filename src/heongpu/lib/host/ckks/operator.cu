@@ -2247,7 +2247,7 @@ namespace heongpu
                     inner_sum.data(), modulus_->data(), inner_n1,
                     current_decomp_count, Q_size_, n_power);
                 HEONGPU_CUDA_CHECK(cudaGetLastError());
-                std::cout << "[C++ KERNEL DEBUG] Finished cipherplain_multiply_accumulate_kernel." << std::endl; 
+                // std::cout << "[C++ KERNEL DEBUG] Finished cipherplain_multiply_accumulate_kernel." << std::endl; 
                 counter = counter + inner_n1;
 
                 inner_sum.scheme_ = scheme_;
@@ -2261,12 +2261,12 @@ namespace heongpu
                 inner_sum.relinearization_required_ =
                     result.relinearization_required_;
                 inner_sum.ciphertext_generated_ = true;
-                std::cout << "[C++ KERNEL DEBUG] Launching rotate_rows_inplace." << std::endl; 
-                std::cout << "[C++ DEBUG]                 - Arg 'inner_sum' depth: " << inner_sum.depth()
-                          << ", scale: " << inner_sum.scale()
-                          << ", rescale_req: " << inner_sum.rescale_required()
-                          << ", relin_req: " << inner_sum.relinearization_required() << std::endl;
-                std::cout << "[C++ DEBUG]                 - Arg 'real_shift': " << real_shift << std::endl;
+                // std::cout << "[C++ KERNEL DEBUG] Launching rotate_rows_inplace." << std::endl; 
+                // std::cout << "[C++ DEBUG]                 - Arg 'inner_sum' depth: " << inner_sum.depth()
+                //           << ", scale: " << inner_sum.scale()
+                //           << ", rescale_req: " << inner_sum.rescale_required()
+                //           << ", relin_req: " << inner_sum.relinearization_required() << std::endl;
+                // std::cout << "[C++ DEBUG]                 - Arg 'real_shift': " << real_shift << std::endl;
 
                 rotate_rows_inplace(inner_sum, galois_key, real_shift, options);
                 std::cout << "[C++ KERNEL DEBUG] Finished rotate_rows_inplace." << std::endl; 
