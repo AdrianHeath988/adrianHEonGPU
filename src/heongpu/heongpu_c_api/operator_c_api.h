@@ -6,6 +6,9 @@
 #include "ciphertext_c_api.h"
 #include "evaluationkey_c_api.h"
 #include "encoder_c_api.h" // HEOperator constructor needs HEEncoder
+#include "encryptor_c_api.h"
+#include "keygenerator_c_api.h"
+
 
 #include <stddef.h>
 #include <stdint.h>

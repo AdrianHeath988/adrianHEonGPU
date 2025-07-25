@@ -114,7 +114,7 @@ typedef struct {
 
 //CUDA profiling functions
 
-
+int HEonGPU_SynchronizeDevice();
 
 // --- CKKS Context Functions ---
 /**

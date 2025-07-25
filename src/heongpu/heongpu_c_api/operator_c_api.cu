@@ -4,6 +4,8 @@
 
 #include "ckks/context.cuh"
 #include "ckks/encoder.cuh"
+#include "ckks/encryptor.cuh"
+#include "ckks/keygenerator.cuh"
 #include "ckks/plaintext.cuh"
 #include "ckks/ciphertext.cuh"
 #include "ckks/evaluationkey.cuh"
@@ -89,6 +91,49 @@ static heongpu::ExecutionOptions map_c_to_cpp_execution_options_op(const C_Execu
 
 
 extern "C" {
+
+//Test Bootstrap:
+void HEonGPU_CKKS_BootstrapTest(HE_CKKS_Context* context, HE_CKKS_ArithmeticOperator* op, HE_CKKS_KeyGenerator* kg, HE_CKKS_SecretKey* sk, HE_CKKS_RelinKey* rk, HE_CKKS_Encoder* encoder, HE_CKKS_Encryptor* encryptor) {
+    //Create bootstrap
+    std::cout << "[C++ Debug] In HEonGPU_CKKS_BootstrapTest, starting:" <<std::endl;
+    context->cpp_context->print_parameters();
+    double scale = pow(2.0, 30);
+    std::vector<Complex64> message;
+    for (int i = 0; i < 100; i++)
+    {
+        message.push_back(0.5);
+    }
+    heongpu::Plaintext<heongpu::Scheme::CKKS> P1(*(context->cpp_context));
+    encoder->cpp_encoder->encode(P1, message, scale);
+
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> C1(*(context->cpp_context));
+    encryptor->cpp_encryptor->encrypt(C1, P1);
+    for (int i = 0; i < 25; i++)
+    {
+        op->cpp_arith_op->mod_drop_inplace(C1);
+    }
+    std::cout << "[C++ Debug] In HEonGPU_CKKS_BootstrapTest, finished generating ct." <<std::endl;
+    heongpu::BootstrappingConfig boot_config(3, 3, 6, true);
+    std::cout << "[C++ Debug] In HEonGPU_CKKS_BootstrapTest, finished generating boot_config." <<std::endl;
+    op->cpp_arith_op->generate_bootstrapping_params(scale, boot_config);
+    std::cout << "[C++ Debug] In HEonGPU_CKKS_BootstrapTest, finished generating bootstrapping params." <<std::endl;
+    std::vector<int> key_index = op->cpp_arith_op->bootstrapping_key_indexs();
+    std::cout << "Total galois key needed for CKKS bootstrapping: "
+              << key_index.size() << std::endl;
+    heongpu::Galoiskey<heongpu::Scheme::CKKS> galois_key(*(context->cpp_context), key_index);
+    kg->cpp_keygen->generate_galois_key(galois_key, *(sk->cpp_secretkey));
+
+    heongpu::Relinkey<heongpu::Scheme::CKKS>* cpp_rk = get_cpp_relinkey(rk);
+
+
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> cpp_result_ct =
+            op->cpp_arith_op->regular_bootstrapping(C1, galois_key, *cpp_rk);
+
+    std::cout << "[C++ Debug] In HEonGPU_CKKS_BootstrapTest, bootstrap complete" <<std::endl;
+}   
+
+
+
 
 // --- CKKS HEArithmeticOperator Lifecycle ---
 HE_CKKS_ArithmeticOperator* HEonGPU_CKKS_ArithmeticOperator_Create(HE_CKKS_Context* context, HE_CKKS_Encoder* encoder) {
@@ -448,7 +493,7 @@ void HEonGPU_CKKS_ArithmeticOperator_Rotate_Inplace(HE_CKKS_ArithmeticOperator* 
 }
 
 HE_CKKS_Ciphertext* HEonGPU_CKKS_ArithmeticOperator_Rotate(HE_CKKS_ArithmeticOperator* op, const HE_CKKS_Ciphertext* ct_in, HE_CKKS_Ciphertext* ct_out, int steps, HE_CKKS_GaloisKey* galois_key_c, const C_ExecutionOptions* options_c) {
-    std::cerr << "[C++ DEBUG] Rotate Check:" << std::endl;
+    std::cout << "[C++ DEBUG] Rotate Check:" << std::endl;
     std::cout << "  op pointer: " << op << std::endl;
     if (op) std::cout << "  op->cpp_arith_op: " << op->cpp_arith_op << std::endl;
     std::cout << "  ct_in pointer: " << ct_in << std::endl;

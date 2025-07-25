@@ -5,6 +5,7 @@
 #include "secstdparams.h" // For heongpu::sec_level_type
 #include "hostvector.cuh" // For heongpu::HostVector
 #include "util.cuh"       // For heongpu::Data128, heongpu::Modulus64 (via modular_arith.cuh)
+#include <cuda_runtime.h>
 
 #include <vector>
 #include <iostream> // For potential error logging (stderr)
@@ -48,6 +49,11 @@ void HEonGPU_Free_C_RNGSeed_Data_Members(C_RNGSeed_Data* seed_data) {
     }
 }
 extern "C" {
+
+int HEonGPU_SynchronizeDevice() {
+    cudaError_t err = cudaDeviceSynchronize();
+    return static_cast<int>(err);
+}
 
 HE_CKKS_Context* HEonGPU_CKKS_Context_Create(C_keyswitching_type method,
                                              C_sec_level_type sec_level) {
