@@ -554,6 +554,8 @@ int HEonGPU_CKKS_ArithmeticOperator_GenerateBootstrappingParams(HE_CKKS_Arithmet
     try {
         heongpu::BootstrappingConfig cpp_config(config->CtoS_piece, config->StoC_piece, config->taylor_number, config->less_key_mode);
         cpp_op->generate_bootstrapping_params(scale, cpp_config);
+        //std::cout << "Finished generate_bootstrapping_params, calling bootstrapping_key_indexs" << std::endl;
+        //std::vector<int> cpp_indices = cpp_op->bootstrapping_key_indexs();
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "GenerateBootstrappingParams failed with exception: " << e.what() << std::endl;

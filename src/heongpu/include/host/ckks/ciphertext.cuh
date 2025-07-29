@@ -310,7 +310,8 @@ namespace heongpu
         void save(std::ostream& os) const;
 
         void load(std::istream& is);
-
+        void memory_clear(cudaStream_t stream);
+        void remove_from_device(cudaStream_t stream);
       private:
         scheme_type scheme_;
         int ring_size_;
@@ -331,11 +332,9 @@ namespace heongpu
         HostVector<Data64> host_locations_;
 
         int memory_size();
-        void memory_clear(cudaStream_t stream);
         void memory_set(DeviceVector<Data64>&& new_device_vector);
 
         void copy_to_device(cudaStream_t stream);
-        void remove_from_device(cudaStream_t stream);
         void remove_from_host();
     };
 

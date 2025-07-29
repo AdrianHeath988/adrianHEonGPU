@@ -1,6 +1,7 @@
 #include "ciphertext_c_api.h"
 #include "heongpu_c_api_internal.h"
 #include "heongpu.cuh"
+#include "memorypool.cuh"
 
 #include "ckks/context.cuh"
 #include "ckks/ciphertext.cuh"
@@ -105,8 +106,18 @@ void HEonGPU_CKKS_Ciphertext_Delete(HE_CKKS_Ciphertext* ciphertext) {
     // The C-style wrapper struct (ciphertext) itself will be freed by the
     // calling language's runtime (Python's garbage collector in this case).
     if (ciphertext && ciphertext->cpp_ciphertext) {
+
+        // std::cout <<"[C++ Debug] Before CipherText Deletion"<<std::endl;
+        // MemoryPool::instance().print_memory_pool_status();
+
+        cudaStream_t stream = ciphertext->cpp_ciphertext->stream();
+        ciphertext->cpp_ciphertext->memory_clear(stream);
         delete ciphertext->cpp_ciphertext;
         ciphertext->cpp_ciphertext = nullptr;
+        HEonGPU_SynchronizeDevice();
+        // std::cout <<"[C++ Debug] After CipherText Deletion"<<std::endl;
+        // MemoryPool::instance().print_memory_pool_status();
+
     }
 }
 

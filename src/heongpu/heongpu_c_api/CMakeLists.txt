@@ -21,6 +21,16 @@ project(heongpu_c_api LANGUAGES CXX CUDA)
 # HEonGPU itself uses CUDA, so CUDA toolkit should be found by the parent project.
 find_package(CUDAToolkit REQUIRED)
 
+target_link_libraries(heongpu PUBLIC 
+    ntt
+    fft
+    rngongpu
+    gmp
+    rmm
+    CUDA::curand
+    ZLIB::ZLIB
+)
+
 add_library(heongpu_c_api SHARED 
     ciphertext_c_api.cu
     ciphertext_c_api.h
