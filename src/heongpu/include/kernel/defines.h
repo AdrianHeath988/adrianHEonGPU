@@ -16,11 +16,11 @@
 
 // Range of the bit-length of all user-defined modulus
 #define MAX_USER_DEFINED_MOD_BIT_COUNT 60
-#define MIN_USER_DEFINED_MOD_BIT_COUNT 30
+#define MIN_USER_DEFINED_MOD_BIT_COUNT 25
 
 // Range of the bit-length of all modulus
 #define MAX_MOD_BIT_COUNT 61
-#define MIN_MOD_BIT_COUNT 30
+#define MIN_MOD_BIT_COUNT 25
 
 // Max auxiliary base count for BFV scheme
 #define MAX_BSK_SIZE 64
