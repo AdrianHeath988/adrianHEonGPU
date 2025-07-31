@@ -100,9 +100,14 @@ HE_CKKS_Plaintext* HEonGPU_CKKS_Plaintext_Create(HE_CKKS_Context* context,
 }
 
 void HEonGPU_CKKS_Plaintext_Delete(HE_CKKS_Plaintext* plaintext) {
-    if (plaintext) {
+    if (plaintext && plaintext->cpp_plaintext) {
+
+        cudaStream_t stream = plaintext->cpp_plaintext->stream();
+        plaintext->cpp_plaintext->memory_clear(stream);
         delete plaintext->cpp_plaintext;
-        delete plaintext;
+        plaintext->cpp_plaintext = nullptr;
+        HEonGPU_SynchronizeDevice();
+
     }
 }
 

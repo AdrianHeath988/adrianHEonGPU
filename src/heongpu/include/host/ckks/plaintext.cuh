@@ -80,6 +80,19 @@ namespace heongpu
         }
 
         /**
+         * @brief Retrieves the CUDA stream associated with the plaintext.
+         *
+         * This function returns the CUDA stream that was used to create or last
+         * modify the plaintext.
+         *
+         * @return The CUDA stream associated with the plaintext.
+         */
+        cudaStream_t stream() const noexcept
+        {
+            return device_locations_.stream();
+        }
+
+        /**
          * @brief Returns a pointer to the underlying plaintext data.
          *
          * @return Data64* Pointer to the plaintext data.
@@ -214,7 +227,7 @@ namespace heongpu
         void save(std::ostream& os) const;
 
         void load(std::istream& is);
-
+        void memory_clear(cudaStream_t stream);
       private:
         scheme_type scheme_;
         int plain_size_;
@@ -231,7 +244,6 @@ namespace heongpu
         HostVector<Data64> host_locations_;
 
         int memory_size();
-        void memory_clear(cudaStream_t stream);
         void memory_set(DeviceVector<Data64>&& new_device_vector);
 
         void copy_to_device(cudaStream_t stream);
