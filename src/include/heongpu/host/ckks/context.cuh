@@ -44,6 +44,11 @@ namespace heongpu
         template <Scheme S> friend class HEMultiPartyManager;
 
       public:
+        std::vector<int> active_devices;
+        void set_active_devices(const std::vector<int>& devices) {
+            active_devices = devices;
+        }
+
         HEContextImpl(const sec_level_type = sec_level_type::sec128);
 
         void set_poly_modulus_degree(size_t poly_modulus_degree);

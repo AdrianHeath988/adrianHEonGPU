@@ -13,12 +13,10 @@ namespace heongpu
     std::shared_ptr<MemoryPool::HostStatsAdaptor>
         MemoryPool::host_stats_adaptor_ = nullptr;
 
-    std::shared_ptr<MemoryPool::DeviceResource> MemoryPool::device_base_ =
-        nullptr;
-    std::shared_ptr<MemoryPool::DevicePoolResource> MemoryPool::device_pool_ =
-        nullptr;
-    std::shared_ptr<MemoryPool::DeviceStatsAdaptor>
-        MemoryPool::device_stats_adaptor_ = nullptr;
+    std::unordered_map<int, std::shared_ptr<MemoryPool::DeviceResource>> MemoryPool::device_bases_ = {};
+    std::unordered_map<int, std::shared_ptr<MemoryPool::DevicePoolResource>> MemoryPool::device_pools_ = {};
+    std::unordered_map<int, std::shared_ptr<MemoryPool::DeviceStatsAdaptor>>
+        MemoryPool::device_stats_adaptors_ = {};
     bool MemoryPool::initialized_ = false;
     std::mutex MemoryPool::mutex_;
 
@@ -66,10 +64,11 @@ namespace heongpu
         return free_memory;
     }
 
-    size_t MemoryPool::get_decive_avaliable_memory() const
+    size_t MemoryPool::get_decive_avaliable_memory(int device_id) const
     {
         size_t free_mem = 0;
         size_t total_mem = 0;
+        cudaSetDevice(device_id);
         cudaMemGetInfo(&free_mem, &total_mem);
         HEONGPU_CUDA_CHECK(cudaGetLastError());
         return free_mem; // total_mem
@@ -87,6 +86,7 @@ namespace heongpu
 
     void MemoryPool::initialize(const MemoryPoolConfig& config, std::vector<int> target_devices)
     {
+        active_devices = target_devices;
         std::lock_guard<std::mutex> guard(mutex_);
         if (!initialized_)
         {
@@ -95,7 +95,7 @@ namespace heongpu
                 ensure_base_resources(device_id);
             }
             size_t total_host_memory = get_host_avaliable_memory();
-            size_t total_device_memory = get_decive_avaliable_memory();
+            size_t total_device_memory = get_decive_avaliable_memory(target_devices[0]); // Assuming all target devices have the same memory capacity
 
             auto normalize_fraction = [](float value,
                                          const char* label) -> float
@@ -225,7 +225,7 @@ namespace heongpu
                     cudaSetDevice(device_id); // Move to the target GPU context
                     
                     auto pool = std::make_shared<DevicePoolResource>(
-                        device_base_.get(), 
+                        device_bases_[device_id].get(), 
                         initial_device_pool_size,
                         max_device_pool_size
                     );
@@ -312,14 +312,14 @@ namespace heongpu
         host_base_->deallocate(ptr, size);
     }
 
-    void MemoryPool::print_memory_pool_status() const
+    void MemoryPool::print_memory_pool_status(int device_id) const
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (device_stats_adaptor_ && device_pool_ && host_stats_adaptor_ &&
+        if (device_stats_adaptors_.count(device_id) && device_pools_.count(device_id) && host_stats_adaptor_ &&
             host_pool_)
         {
-            auto device_status = device_stats_adaptor_->get_bytes_counter();
-            const auto device_total = device_pool_->pool_size();
+            auto device_status = device_stats_adaptors_.at(device_id)->get_bytes_counter();
+            const auto device_total = device_pools_.at(device_id)->pool_size();
             const auto device_used = device_status.value;
             const auto device_free = device_total - device_used;
 
@@ -352,26 +352,26 @@ namespace heongpu
         }
     }
 
-    size_t MemoryPool::get_current_device_pool_memory_usage() const
+    size_t MemoryPool::get_current_device_pool_memory_usage(int device_id) const
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (!device_stats_adaptor_)
+        if (!device_stats_adaptors_.count(device_id))
         {
             return 0;
         }
-        auto device_status = device_stats_adaptor_->get_bytes_counter();
+        auto device_status = device_stats_adaptors_.at(device_id)->get_bytes_counter();
         return device_status.value;
     }
 
-    size_t MemoryPool::get_free_device_pool_memory() const
+    size_t MemoryPool::get_free_device_pool_memory(int device_id) const
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (!device_stats_adaptor_ || !device_pool_)
+        if (!device_stats_adaptors_.count(device_id) || !device_pools_.count(device_id))
         {
             return 0;
         }
-        auto device_status = device_stats_adaptor_->get_bytes_counter();
-        return device_pool_->pool_size() - device_status.value;
+        auto device_status = device_stats_adaptors_.at(device_id)->get_bytes_counter();
+        return device_pools_.at(device_id)->pool_size() - device_status.value;
     }
 
     size_t MemoryPool::get_current_host_pool_memory_usage() const
@@ -406,16 +406,16 @@ namespace heongpu
     void MemoryPool::clean_pool()
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (initialized_ || host_base_ || device_base_ || host_pool_ ||
-            device_pool_)
+        if (initialized_ || host_base_ || device_bases_.size() > 0 || host_pool_ ||
+            device_pools_.size() > 0)
         {
             rmm::mr::set_current_device_resource(nullptr);
             host_stats_adaptor_.reset();
             host_pool_.reset();
             host_base_.reset();
-            device_stats_adaptor_.reset();
-            device_pool_.reset();
-            device_base_.reset();
+            device_stats_adaptors_.clear();
+            device_pools_.clear();
+            device_bases_.clear();
             initialized_ = false;
         }
     }

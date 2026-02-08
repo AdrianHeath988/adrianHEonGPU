@@ -70,24 +70,50 @@ namespace heongpu
         static MemoryPool& instance();
 
         void initialize();
-        void initialize(const MemoryPoolConfig& config);
+        void initialize(const MemoryPoolConfig& config){
+            std::vector<int> target_devices;
+            int device_count = 0;
+            cudaGetDeviceCount(&device_count);
+            for (int i = 0; i < device_count; ++i) {
+                target_devices.push_back(i);
+            }
+            return initialize(config, target_devices);
+        }
+        void initialize(const MemoryPoolConfig& config, std::vector<int> target_devices);
         // for device
-        void use_memory_pool(bool use);
+        void use_memory_pool(bool use){
+            use_memory_pool(use, active_devices);
+        }
+        void use_memory_pool(bool use, const std::vector<int>& target_devices);
+        
 
         // for device
         void* allocate(size_t size, cudaStream_t stream = cudaStreamDefault);
         void deallocate(void* ptr, size_t size,
                         cudaStream_t stream = cudaStreamDefault);
 
-        rmm::mr::device_memory_resource* get_device_resource() const;
+        rmm::mr::device_memory_resource* get_device_resource() const{
+            return get_device_resource(active_devices[0]); // Assuming the first active device for default
+        }
+        rmm::mr::device_memory_resource* get_device_resource(int device_id) const;
         HostStatsAdaptor* get_host_resource() const;
 
         void* host_allocate(size_t size);
         void host_deallocate(void* ptr, size_t size);
 
-        void print_memory_pool_status() const;
-        size_t get_current_device_pool_memory_usage() const;
-        size_t get_free_device_pool_memory() const;
+        void print_memory_pool_status() const{
+            print_memory_pool_status(active_devices[0]); // Assuming the first active device for default
+        }
+        void print_memory_pool_status(int device_id) const;
+        size_t get_current_device_pool_memory_usage() const{
+            return get_current_device_pool_memory_usage(active_devices[0]); // Assuming the first active device for default
+        }
+        size_t get_current_device_pool_memory_usage(int device_id) const;
+
+        size_t get_free_device_pool_memory() const{
+            return get_free_device_pool_memory(active_devices[0]); // Assuming the first active device for default
+        }
+        size_t get_free_device_pool_memory(int device_id) const;
 
         size_t get_current_host_pool_memory_usage() const;
         size_t get_free_host_pool_memory() const;
@@ -100,9 +126,9 @@ namespace heongpu
         MemoryPool& operator=(const MemoryPool&) = delete;
 
         void clean_pool();
-        void ensure_base_resources();
+        void ensure_base_resources(int device_id);
         size_t get_host_avaliable_memory() const;
-        size_t get_decive_avaliable_memory() const;
+        size_t get_decive_avaliable_memory(int device_id) const;
         size_t roundup_256(size_t size) const;
 
         static std::shared_ptr<HostResource> host_base_;
@@ -117,6 +143,9 @@ namespace heongpu
         static std::unordered_map<int, std::shared_ptr<DevicePoolResource>> device_pools_;
         static std::unordered_map<int, std::shared_ptr<DeviceStatsAdaptor>> device_stats_adaptors_;
         //static std::shared_ptr<DeviceStatsAdaptor> device_stats_adaptor_;
+
+        static std::vector<int> active_devices;
+
         static bool initialized_;
         static std::mutex mutex_;
     };
