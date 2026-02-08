@@ -42,15 +42,19 @@ namespace heongpu
         return instance;
     }
 
-    void MemoryPool::ensure_base_resources()
+    void MemoryPool::ensure_base_resources(int device_id)
     {
         if (!host_base_)
         {
             host_base_ = std::make_shared<HostResource>();
         }
-        if (!device_base_)
-        {
-            device_base_ = std::make_shared<DeviceResource>();
+        // if (!device_base_)
+        // {
+        //     device_base_ = std::make_shared<DeviceResource>();
+        // }
+        if (device_bases_.find(device_id) == device_bases_.end()) {
+            cudaSetDevice(device_id); // Ensure the resource is tied to the correct context
+            device_bases_[device_id] = std::make_shared<DeviceResource>();
         }
     }
 
@@ -78,15 +82,18 @@ namespace heongpu
 
     void MemoryPool::initialize()
     {
-        initialize(MemoryPoolConfig::Defaults());
+        initialize(MemoryPoolConfig::Defaults(), {0}); // Default to GPU 0 if no target devices specified
     }
 
-    void MemoryPool::initialize(const MemoryPoolConfig& config)
+    void MemoryPool::initialize(const MemoryPoolConfig& config, std::vector<int> target_devices)
     {
         std::lock_guard<std::mutex> guard(mutex_);
         if (!initialized_)
         {
-            ensure_base_resources();
+            for (int device_id : target_devices) {
+                cudaSetDevice(device_id); 
+                ensure_base_resources(device_id);
+            }
             size_t total_host_memory = get_host_avaliable_memory();
             size_t total_device_memory = get_decive_avaliable_memory();
 
@@ -208,37 +215,47 @@ namespace heongpu
                         "size");
                 }
 
-                device_pool_ = std::make_shared<DevicePoolResource>(
-                    device_base_.get(), initial_device_pool_size,
-                    max_device_pool_size);
-                device_stats_adaptor_ =
-                    std::make_shared<DeviceStatsAdaptor>(device_pool_.get());
+                // device_pool_ = std::make_shared<DevicePoolResource>(
+                //     device_base_.get(), initial_device_pool_size,
+                //     max_device_pool_size);
+                // device_stats_adaptor_ =
+                //     std::make_shared<DeviceStatsAdaptor>(device_pool_.get());
+                
+                for (int device_id : target_devices) {
+                    cudaSetDevice(device_id); // Move to the target GPU context
+                    
+                    auto pool = std::make_shared<DevicePoolResource>(
+                        device_base_.get(), 
+                        initial_device_pool_size,
+                        max_device_pool_size
+                    );
+                    
+                    device_pools_[device_id] = pool;
+                    device_stats_adaptors_[device_id] = std::make_shared<DeviceStatsAdaptor>(pool.get());
+                }
+
             }
 
             initialized_ = true;
         }
     }
 
-    void MemoryPool::use_memory_pool(bool use)
+    void MemoryPool::use_memory_pool(bool use, const std::vector<int>& target_devices)
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (use)
+        for (int device_id : target_devices)
         {
-            if (device_stats_adaptor_)
+            cudaSetDevice(device_id); 
+
+            if (use && device_stats_adaptors_.count(device_id))
             {
-                rmm::mr::set_current_device_resource(
-                    device_stats_adaptor_.get());
+                rmm::mr::set_current_device_resource(device_stats_adaptors_[device_id].get());
             }
             else
             {
-                ensure_base_resources();
-                rmm::mr::set_current_device_resource(device_base_.get());
+                ensure_base_resources(device_id);
+                rmm::mr::set_current_device_resource(device_bases_[device_id].get());
             }
-        }
-        else
-        {
-            ensure_base_resources();
-            rmm::mr::set_current_device_resource(device_base_.get());
         }
     }
 
@@ -254,15 +271,15 @@ namespace heongpu
         rmm::mr::get_current_device_resource()->deallocate(ptr, size, stream);
     }
 
-    rmm::mr::device_memory_resource* MemoryPool::get_device_resource() const
+    rmm::mr::device_memory_resource* MemoryPool::get_device_resource(int device_id) const
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (device_stats_adaptor_)
+        if (device_stats_adaptors_.find(device_id) != device_stats_adaptors_.end())
         {
-            return device_stats_adaptor_.get();
+            return device_stats_adaptors_.at(device_id).get();
         }
-        const_cast<MemoryPool*>(this)->ensure_base_resources();
-        return device_base_.get();
+        const_cast<MemoryPool*>(this)->ensure_base_resources(device_id);
+        return device_bases_[device_id].get();
     }
 
     MemoryPool::HostStatsAdaptor* MemoryPool::get_host_resource() const
@@ -278,7 +295,8 @@ namespace heongpu
         {
             return host_pool_->allocate(size);
         }
-        ensure_base_resources();
+
+        ensure_base_resources(0); // device_id is irrelevant for host resource
         return host_base_->allocate(size);
     }
 
@@ -290,7 +308,7 @@ namespace heongpu
             host_pool_->deallocate(ptr, size);
             return;
         }
-        ensure_base_resources();
+        ensure_base_resources(0);
         host_base_->deallocate(ptr, size);
     }
 

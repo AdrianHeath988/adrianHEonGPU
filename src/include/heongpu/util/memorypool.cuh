@@ -109,9 +109,14 @@ namespace heongpu
         static std::shared_ptr<HostPoolResource> host_pool_;
         static std::shared_ptr<HostStatsAdaptor> host_stats_adaptor_;
 
-        static std::shared_ptr<DeviceResource> device_base_;
-        static std::shared_ptr<DevicePoolResource> device_pool_;
-        static std::shared_ptr<DeviceStatsAdaptor> device_stats_adaptor_;
+        //for multi-gpu
+        // static std::shared_ptr<DeviceResource> device_base_;
+        static std::unordered_map<int, std::shared_ptr<DeviceResource>> device_bases_;
+        // static std::shared_ptr<DevicePoolResource> device_pool_;
+        
+        static std::unordered_map<int, std::shared_ptr<DevicePoolResource>> device_pools_;
+        static std::unordered_map<int, std::shared_ptr<DeviceStatsAdaptor>> device_stats_adaptors_;
+        //static std::shared_ptr<DeviceStatsAdaptor> device_stats_adaptor_;
         static bool initialized_;
         static std::mutex mutex_;
     };
