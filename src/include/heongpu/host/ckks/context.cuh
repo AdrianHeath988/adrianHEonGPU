@@ -62,6 +62,10 @@ namespace heongpu
 
         void generate();
         void generate(const MemoryPoolConfig& pool_config);
+        void generate(const std::vector<int>& target_devices) {
+            generate(MemoryPoolConfig::Defaults(), target_devices);
+        }
+        void generate(const MemoryPoolConfig& pool_config, std::vector<int> target_devices);
 
         void print_parameters();
 

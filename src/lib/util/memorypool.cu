@@ -199,8 +199,13 @@ namespace heongpu
                     device_pools_[device_id] = pool;
                     device_stats_adaptors_[device_id] = std::make_shared<DeviceStatsAdaptor>(pool.get());
                     
-                    // CRITICAL FIX: Activate the pool for this device immediately
                     rmm::mr::set_current_device_resource(device_stats_adaptors_[device_id].get());
+                }
+                for(int device_id : target_devices) {
+                    if(device_id == 0) {
+                        ScopedDevice sd(device_id);
+                        break; // Switch back to default device after setup
+                    }
                 }
             }
 

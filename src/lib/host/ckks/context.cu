@@ -266,11 +266,16 @@ namespace heongpu
 
     void HEContextImpl<Scheme::CKKS>::generate()
     {
-        generate(MemoryPoolConfig::Defaults());
+        generate(MemoryPoolConfig::Defaults(), std::vector<int>{0}); // default to device 0
+    }
+
+    void HEContextImpl<Scheme::CKKS>::generate(const MemoryPoolConfig& pool_config)
+    {
+        generate(pool_config, std::vector<int>{0}); // default to device 0
     }
 
     void
-    HEContextImpl<Scheme::CKKS>::generate(const MemoryPoolConfig& pool_config)
+    HEContextImpl<Scheme::CKKS>::generate(const MemoryPoolConfig& pool_config, std::vector<int> target_devices)
     {
         if ((!context_generated_) && (poly_modulus_degree_specified_) &&
             (coeff_modulus_specified_))
