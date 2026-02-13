@@ -13,10 +13,11 @@ namespace heongpu
     std::shared_ptr<MemoryPool::HostStatsAdaptor>
         MemoryPool::host_stats_adaptor_ = nullptr;
 
+
+    std::vector<int> MemoryPool::active_devices = {0};
     std::unordered_map<int, std::shared_ptr<MemoryPool::DeviceResource>> MemoryPool::device_bases_ = {};
     std::unordered_map<int, std::shared_ptr<MemoryPool::DevicePoolResource>> MemoryPool::device_pools_ = {};
-    std::unordered_map<int, std::shared_ptr<MemoryPool::DeviceStatsAdaptor>>
-        MemoryPool::device_stats_adaptors_ = {};
+    std::unordered_map<int, std::shared_ptr<MemoryPool::DeviceStatsAdaptor>> MemoryPool::device_stats_adaptors_ = {};
     bool MemoryPool::initialized_ = false;
     std::mutex MemoryPool::mutex_;
 
