@@ -63,6 +63,10 @@ namespace heongpu
         special_ifft_roots_table_ = encoder.special_ifft_roots_table_;
     }
 
+
+    
+
+
     __host__ void HEOperator<Scheme::CKKS>::add(
         Ciphertext<Scheme::CKKS>& input1, Ciphertext<Scheme::CKKS>& input2,
         Ciphertext<Scheme::CKKS>& output, const ExecutionOptions& options)

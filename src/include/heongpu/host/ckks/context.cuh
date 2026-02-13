@@ -75,6 +75,10 @@ namespace heongpu
         {
             return n_power;
         }
+        inline std::vector<int> get_target_devices() const noexcept
+        {
+            return target_devices_;
+        }
 
         inline int get_ciphertext_modulus_count() const noexcept
         {
@@ -113,6 +117,8 @@ namespace heongpu
         int Q_prime_size;
         int Q_size;
         int P_size;
+
+        std::vector<int> target_devices_;
 
         std::vector<Modulus64> prime_vector_;
         std::vector<Data64> base_q;

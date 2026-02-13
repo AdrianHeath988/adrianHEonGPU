@@ -281,9 +281,15 @@ namespace heongpu
             (coeff_modulus_specified_))
         {
             // Memory pool initialization
+            target_devices_ = target_devices;
             MemoryPool::instance().initialize(pool_config);
             MemoryPool::instance().use_memory_pool(pool_config.use_memory_pool);
-            cudaDeviceSynchronize();
+            for(int dev : target_devices_) {
+                cudaSetDevice(dev);
+                cudaDeviceSynchronize();
+            }
+            // Restore to default device 0 or primary
+            if (!target_devices_.empty()) cudaSetDevice(target_devices_[0]);
 
             // DRNG initialization
             std::vector<unsigned char> generated_entropy(16); // for 128 bit
