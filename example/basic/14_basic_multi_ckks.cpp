@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
     // Generate a HEonGPU context with these parameters. The context checks the
     // validity of the parameters and provides various utilities needed for
     // encryption, decryption, and evaluation.
-    context->generate(std::vector<int>{0});
+    context->generate(std::vector<int>{0, 1});
     context->print_parameters();
 
     // The scale is set to 2^30, resulting in 30 bits of precision before the
@@ -106,7 +106,8 @@ int main(int argc, char* argv[])
     //  Transfer that vector from CPU to GPU and Encode that simple vector in
     //  GPU.
     encoder.encode(P1, message, scale);
-
+    // P1.move_to_device(0); // store plaintext in GPU, default device is 0
+    // P1.move_to_device(1); // store plaintext in GPU, device 1
     // Alternative way!
     // heongpu::Plaintext P1(context);
     // encoder.encode(P1, message, scale);
@@ -116,63 +117,66 @@ int main(int argc, char* argv[])
     std::cout << "Encrypt plaintext vector." << std::endl;
     heongpu::Ciphertext<Scheme> C1(context);
     encryptor.encrypt(C1, P1);
-
+    C1.move_to_device(0); // store ciphertext in GPU, default device is 0
+    C1.move_to_device(1); // store ciphertext in GPU, device 1
+    C1.move_to_device(0); // move back to device 0
+    
     std::cout << "Square message homomorphically." << std::endl;
     operators.multiply_inplace(C1, C1);
-    std::cout << "Remove non-linear part of ciphertext." << std::endl;
-    operators.relinearize_inplace(C1, relin_key);
-    std::cout << "Divede ciphertext to last modulus and reduce noise."
-              << std::endl;
-    operators.rescale_inplace(C1);
+    // std::cout << "Remove non-linear part of ciphertext." << std::endl;
+    // operators.relinearize_inplace(C1, relin_key);
+    // std::cout << "Divede ciphertext to last modulus and reduce noise."
+    //           << std::endl;
+    // operators.rescale_inplace(C1);
 
-    std::cout << "Decrypt result." << std::endl;
-    heongpu::Plaintext<Scheme> P2(context);
-    decryptor.decrypt(P2, C1);
+    // std::cout << "Decrypt result." << std::endl;
+    // heongpu::Plaintext<Scheme> P2(context);
+    // decryptor.decrypt(P2, C1);
 
-    std::cout << "Decode Plaintext and Transfer data from GPU to CPU."
-              << std::endl;
-    std::vector<double> check1;
-    encoder.decode(check1, P2);
+    // std::cout << "Decode Plaintext and Transfer data from GPU to CPU."
+    //           << std::endl;
+    // std::vector<double> check1;
+    // encoder.decode(check1, P2);
 
-    //  Approximately:
-    //  [100,  400, 900, 1600, 0.25, 9, ...,  9]
+    // //  Approximately:
+    // //  [100,  400, 900, 1600, 0.25, 9, ...,  9]
 
-    std::cout << "Check result:" << std::endl;
-    display_vector(check1);
+    // std::cout << "Check result:" << std::endl;
+    // display_vector(check1);
 
-    std::vector<double> message2(slot_count, 0.25); // In CPU
+    // std::vector<double> message2(slot_count, 0.25); // In CPU
 
-    //  [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, ..., 0.5]
+    // //  [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, ..., 0.5]
 
-    std::cout << "Message2 plaintext vector." << std::endl;
-    display_vector(message2);
+    // std::cout << "Message2 plaintext vector." << std::endl;
+    // display_vector(message2);
 
-    heongpu::Plaintext<Scheme> P3(context);
-    encoder.encode(P3, message2, scale);
+    // heongpu::Plaintext<Scheme> P3(context);
+    // encoder.encode(P3, message2, scale);
 
-    std::cout << "Drop the P3 last modulus." << std::endl;
-    operators.mod_drop_inplace(
-        P3); // for now, do it manually for each levels you need to go.
+    // std::cout << "Drop the P3 last modulus." << std::endl;
+    // operators.mod_drop_inplace(
+    //     P3); // for now, do it manually for each levels you need to go.
 
-    heongpu::Ciphertext<Scheme> C2(context);
-    std::cout << "Mutiply ciphertext with plaintext." << std::endl;
-    operators.multiply_plain(C1, P3, C2);
-    std::cout << "Add ciphertext to itself." << std::endl;
-    operators.add_inplace(C2, C2);
+    // heongpu::Ciphertext<Scheme> C2(context);
+    // std::cout << "Mutiply ciphertext with plaintext." << std::endl;
+    // operators.multiply_plain(C1, P3, C2);
+    // std::cout << "Add ciphertext to itself." << std::endl;
+    // operators.add_inplace(C2, C2);
 
-    operators.rescale_inplace(C2);
+    // operators.rescale_inplace(C2);
 
-    std::cout << "Decrypt result." << std::endl;
-    heongpu::Plaintext<Scheme> P4(context);
-    decryptor.decrypt(P4, C2);
+    // std::cout << "Decrypt result." << std::endl;
+    // heongpu::Plaintext<Scheme> P4(context);
+    // decryptor.decrypt(P4, C2);
 
-    std::vector<double> check2;
-    encoder.decode(check2, P4);
+    // std::vector<double> check2;
+    // encoder.decode(check2, P4);
 
-    //  [50, 200, 450, 800, 4.5, 4.5, ..., 4.5]
+    // //  [50, 200, 450, 800, 4.5, 4.5, ..., 4.5]
 
-    std::cout << "Check result2:" << std::endl;
-    display_vector(check2);
+    // std::cout << "Check result2:" << std::endl;
+    // display_vector(check2);
 
     return EXIT_SUCCESS;
 }
