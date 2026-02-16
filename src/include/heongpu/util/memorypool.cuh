@@ -93,7 +93,9 @@ namespace heongpu
                         cudaStream_t stream = cudaStreamDefault);
 
         rmm::mr::device_memory_resource* get_device_resource() const{
-            return get_device_resource(active_devices[0]); // Assuming the first active device for default
+            int current_device;
+            cudaGetDevice(&current_device); // Get the actual active GPU
+            return get_device_resource(current_device);
         }
         rmm::mr::device_memory_resource* get_device_resource(int device_id) const;
         HostStatsAdaptor* get_host_resource() const;
