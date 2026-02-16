@@ -66,10 +66,51 @@ namespace heongpu
                     DeviceVector<Data64>(host_locations_, stream);
                 host_locations_.resize(0);
                 host_locations_.shrink_to_fit();
+                cudaGetDevice(&current_device_id);
             }
 
             storage_type_ = storage_type::DEVICE;
         }
+    }
+    void Ciphertext<Scheme::CKKS>::move_to_device(int device_id, cudaStream_t stream)
+    {
+        int original_device;
+        cudaGetDevice(&original_device);
+
+        if (storage_type_ == storage_type::DEVICE) {
+            if (device_id == original_device) return; // Already there
+
+            // Switch to target device to allocate memory there
+            cudaSetDevice(device_id);
+            DeviceVector<Data64> new_device_data(cipher_size_, stream);
+
+            // Direct P2P copy from source GPU to target GPU
+            cudaMemcpyPeerAsync(new_device_data.data(), device_id,
+                                device_locations_.data(), original_device,
+                                cipher_size_ * sizeof(Data64), stream);
+            HEONGPU_CUDA_CHECK(cudaGetLastError());
+            cudaStreamSynchronize(stream); // Ensure copy is complete before proceeding
+            // Update the object's data and state
+            device_locations_ = std::move(new_device_data);
+            current_device_id = device_id;
+            // Return to original context (optional but recommended)
+            cudaSetDevice(original_device);
+            
+        } 
+        else { 
+            // Moving from Host directly to a specific Device
+            cudaSetDevice(device_id);
+            device_locations_ = DeviceVector<Data64>(host_locations_, stream);
+            current_device_id = device_id;
+            
+            host_locations_.resize(0);
+            host_locations_.shrink_to_fit();
+            storage_type_ = storage_type::DEVICE;
+            
+            cudaSetDevice(original_device);
+        }
+        
+        HEONGPU_CUDA_CHECK(cudaGetLastError());
     }
 
     void Ciphertext<Scheme::CKKS>::store_in_host(cudaStream_t stream)
@@ -90,7 +131,7 @@ namespace heongpu
                                 cipher_memory_size * sizeof(Data64),
                                 cudaMemcpyDeviceToHost, stream);
                 HEONGPU_CUDA_CHECK(cudaGetLastError());
-
+                current_device_id = 0;
                 device_locations_.resize(0, stream);
                 device_locations_.shrink_to_fit(stream);
             }

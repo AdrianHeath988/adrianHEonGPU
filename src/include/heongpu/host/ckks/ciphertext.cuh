@@ -50,6 +50,11 @@ namespace heongpu
         void store_in_device(cudaStream_t stream = cudaStreamDefault);
 
         /**
+         * @brief Stores the ct in the device (GPU) memory of the specified device.
+         */
+        void move_to_device(int device_id, cudaStream_t stream = cudaStreamDefault);
+
+        /**
          * @brief Stores the ciphertext in the host (CPU) memory.
          */
         void store_in_host(cudaStream_t stream = cudaStreamDefault);
@@ -318,6 +323,7 @@ namespace heongpu
         void load(std::istream& is);
 
       private:
+        int current_device_id = 0;
         scheme_type scheme_;
         int ring_size_;
         int coeff_modulus_count_;
