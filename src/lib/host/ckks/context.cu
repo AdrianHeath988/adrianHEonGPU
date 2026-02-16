@@ -282,12 +282,38 @@ namespace heongpu
         {
             // Memory pool initialization
             target_devices_ = target_devices;
+            for (int src_id : target_devices) {
+                HEONGPU_CUDA_CHECK(cudaSetDevice(src_id));
+                for (int dst_id : target_devices) {
+                    if (src_id != dst_id) {
+                        int can_access = 0;
+                        cudaDeviceCanAccessPeer(&can_access, src_id, dst_id);
+                        
+                        if (can_access) {
+                            // Try to enable P2P access
+                            cudaError_t err = cudaDeviceEnablePeerAccess(dst_id, 0);
+                            
+                            // Ignore the error if it was already enabled by a previous context or call
+                            if (err != cudaSuccess && err != cudaErrorPeerAccessAlreadyEnabled) {
+                                fprintf(stderr, "Warning: Failed to enable P2P from device %d to %d\n", src_id, dst_id);
+                            }
+                        } else {
+                            fprintf(stderr, "Warning: P2P access not supported between device %d and %d. Multi-GPU performance may suffer.\n", src_id, dst_id);
+                        }
+                    }
+                }
+            }
+            if (!target_devices.empty()) {
+                HEONGPU_CUDA_CHECK(cudaSetDevice(target_devices[0]));
+            }
+
             MemoryPool::instance().initialize(pool_config);
             MemoryPool::instance().use_memory_pool(pool_config.use_memory_pool);
             for(int dev : target_devices_) {
                 cudaSetDevice(dev);
                 cudaDeviceSynchronize();
             }
+
             // Restore to default device 0 or primary
             if (!target_devices_.empty()) cudaSetDevice(target_devices_[0]);
 
