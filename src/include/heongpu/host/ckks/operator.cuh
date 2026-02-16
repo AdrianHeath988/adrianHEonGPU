@@ -567,7 +567,15 @@ namespace heongpu
                     "Please use rescale operation to get rid of additional "
                     "noise!");
             }
-
+            //check that both inputs are on the same device
+            if (input1.current_device_id != input2.current_device_id)
+            {
+                throw std::invalid_argument(
+                    "Ciphertexts are not on the same device!");
+            }
+            cudaSetDevice(input1.current_device_id);
+            std::cout << "Multiplying ciphertexts on device " << input1.current_device_id
+                      << std::endl;
             input_storage_manager(
                 input1,
                 [&](Ciphertext<Scheme::CKKS>& input1_)

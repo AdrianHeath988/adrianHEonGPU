@@ -259,7 +259,8 @@ namespace heongpu
     void output_storage_manager(T& object, F function, ExecutionOptions options)
     {
         function(object);
-
+        std::cout << "Output storage manager: Storage type after function execution: "
+                  << (object.is_on_device() ? "DEVICE" : "HOST") << std::endl;
         if (options.storage_ == storage_type::DEVICE)
         {
             object.store_in_device(options.stream_);

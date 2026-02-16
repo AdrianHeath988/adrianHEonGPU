@@ -56,12 +56,12 @@ namespace heongpu
 
             // Switch to target device to allocate memory there
             cudaSetDevice(device_id);
-            DeviceVector<Data64> new_device_data(plain_size_, stream);
+            DeviceVector<Data64> new_device_data(device_locations_.size(), stream);
 
             // Direct P2P copy from source GPU to target GPU
             cudaMemcpyPeerAsync(new_device_data.data(), device_id,
                                 device_locations_.data(), original_device,
-                                plain_size_ * sizeof(Data64), stream);
+                                device_locations_.size() * sizeof(Data64), stream);
             HEONGPU_CUDA_CHECK(cudaGetLastError());
             cudaStreamSynchronize(stream); // Ensure copy is complete before proceeding
             // Update the object's data and state
@@ -69,6 +69,7 @@ namespace heongpu
             current_device_id = device_id;
             // Return to original context (optional but recommended)
             cudaSetDevice(original_device);
+            
             
         } 
         else { 

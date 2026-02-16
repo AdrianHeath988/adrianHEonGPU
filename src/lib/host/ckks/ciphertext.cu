@@ -80,25 +80,30 @@ namespace heongpu
         if (storage_type_ == storage_type::DEVICE) {
             if (device_id == original_device) return; // Already there
 
+            // Retrieve the total number of Data64 elements in the current buffer
+            size_t total_elements = device_locations_.size();
+
             // Switch to target device to allocate memory there
             cudaSetDevice(device_id);
-            DeviceVector<Data64> new_device_data(cipher_size_, stream);
+            DeviceVector<Data64> new_device_data(total_elements, stream);
 
-            // Direct P2P copy from source GPU to target GPU
+            // Direct P2P copy from source GPU to target GPU using the full buffer size
             cudaMemcpyPeerAsync(new_device_data.data(), device_id,
                                 device_locations_.data(), original_device,
-                                cipher_size_ * sizeof(Data64), stream);
+                                total_elements * sizeof(Data64), stream);
+            
             HEONGPU_CUDA_CHECK(cudaGetLastError());
-            cudaStreamSynchronize(stream); // Ensure copy is complete before proceeding
+            cudaStreamSynchronize(stream); 
+            
             // Update the object's data and state
             device_locations_ = std::move(new_device_data);
             current_device_id = device_id;
-            // Return to original context (optional but recommended)
-            cudaSetDevice(original_device);
             
+            cudaSetDevice(original_device);
         } 
         else { 
             // Moving from Host directly to a specific Device
+            int cipher_memory_size = cipher_size_ * (coeff_modulus_count_ - depth_) * ring_size_;
             cudaSetDevice(device_id);
             device_locations_ = DeviceVector<Data64>(host_locations_, stream);
             current_device_id = device_id;
