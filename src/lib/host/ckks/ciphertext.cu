@@ -75,10 +75,10 @@ namespace heongpu
     void Ciphertext<Scheme::CKKS>::move_to_device(int device_id, cudaStream_t stream)
     {
         int original_device;
-        cudaGetDevice(&original_device);
+        cudaGetDevice(&original_device);    //active device
 
         if (storage_type_ == storage_type::DEVICE) {
-            if (device_id == original_device) return; // Already there
+            if (device_id == current_device_id) return; // Already there
 
             // Retrieve the total number of Data64 elements in the current buffer
             size_t total_elements = device_locations_.size();
@@ -89,7 +89,7 @@ namespace heongpu
 
             // Direct P2P copy from source GPU to target GPU using the full buffer size
             cudaMemcpyPeerAsync(new_device_data.data(), device_id,
-                                device_locations_.data(), original_device,
+                                device_locations_.data(), current_device_id,
                                 total_elements * sizeof(Data64), stream);
             
             HEONGPU_CUDA_CHECK(cudaGetLastError());
