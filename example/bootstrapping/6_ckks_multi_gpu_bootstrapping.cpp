@@ -2,7 +2,8 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 // Developer: Alişah Özcan
-
+#include <thread>
+#include <chrono>
 #include <heongpu/heongpu.hpp>
 #include "../example_util.h"
 
@@ -12,7 +13,7 @@ int main(int argc, char* argv[])
     heongpu::HEContext<heongpu::Scheme::CKKS> context =
         heongpu::GenHEContext<heongpu::Scheme::CKKS>(
             heongpu::sec_level_type::none);
-    size_t poly_modulus_degree = 4096;
+    size_t poly_modulus_degree = 65536;
     context->set_poly_modulus_degree(poly_modulus_degree);
 
     context->set_coeff_modulus_bit_sizes(
@@ -93,6 +94,20 @@ int main(int argc, char* argv[])
     // Generates all galois key needed for bootstrapping
     keygen.generate_galois_key(galois_key,
                                secret_key); // all galois keys are stored in GPU
+
+    cudaSetDevice(1); 
+
+    // Use the copy constructors to create duplicates on Device 1
+    // The copy constructor will allocate VRAM on the current device (1) 
+    // and copy the data over the PCIe bus.
+    heongpu::Galoiskey<heongpu::Scheme::CKKS> galois_key_dev1 = galois_key;
+    heongpu::Relinkey<heongpu::Scheme::CKKS> relin_key_dev1 = relin_key;
+
+    // Switch back to Device 0 for safety before continuing
+    cudaSetDevice(0);
+    
+
+
     // keygen.generate_galois_key(galois_key, secret_key,
     // heongpu::ExecutionOptions().set_storage_type(heongpu::storage_type::HOST));
     // // all galois keys are stored in CPU
@@ -105,13 +120,26 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "Depth before bootstrapping: " << C1.depth() << std::endl;
-
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot;
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot2;
+    auto start = std::chrono::high_resolution_clock::now();
     // Bootstapping Operation
-    heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot =
-        operators.regular_bootstrapping(C1, galois_key, relin_key);
+    std::thread t1([&]() {
+        cudaSetDevice(0);
+        cipher_boot = operators.regular_bootstrapping(C2, galois_key, relin_key);
+    });
 
-    heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot2 =
-        operators.regular_bootstrapping(C2, galois_key, relin_key);
+    // Launch Device 1 bootstrapping in its own thread
+    std::thread t2([&]() {
+        cudaSetDevice(1);
+        cipher_boot2 = operators.regular_bootstrapping(C1, galois_key_dev1, relin_key_dev1);
+    });
+
+    t1.join();
+    t2.join();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
 
     std::cout << "Depth after bootstrapping: " << cipher_boot.depth()
               << std::endl;
