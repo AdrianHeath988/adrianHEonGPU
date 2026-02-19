@@ -67,6 +67,12 @@ int main(int argc, char* argv[])
     heongpu::Ciphertext<heongpu::Scheme::CKKS> C1(context);
     encryptor.encrypt(C1, P1);
     C1.move_to_device(1); // store ciphertext in GPU, default device is 0
+
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> C2(context);
+    encryptor.encrypt(C2, P1);
+
+
+
     // Check README.md for more detail information
     // CtoS_piece_ = [2,5]
     // StoC_piece_ = [2,5]
@@ -95,6 +101,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < 31 - 1; i++)
     {
         operators.mod_drop_inplace(C1);
+        operators.mod_drop_inplace(C2);
     }
 
     std::cout << "Depth before bootstrapping: " << C1.depth() << std::endl;
@@ -103,6 +110,9 @@ int main(int argc, char* argv[])
     heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot =
         operators.regular_bootstrapping(C1, galois_key, relin_key);
 
+    heongpu::Ciphertext<heongpu::Scheme::CKKS> cipher_boot2 =
+        operators.regular_bootstrapping(C2, galois_key, relin_key);
+
     std::cout << "Depth after bootstrapping: " << cipher_boot.depth()
               << std::endl;
 
@@ -110,6 +120,11 @@ int main(int argc, char* argv[])
     decryptor.decrypt(P_res1, cipher_boot);
     std::vector<Complex64> decrypted_1;
     encoder.decode(decrypted_1, P_res1);
+
+    heongpu::Plaintext<heongpu::Scheme::CKKS> P_res2(context);
+    decryptor.decrypt(P_res2, cipher_boot2);
+    std::vector<Complex64> decrypted_2;
+    encoder.decode(decrypted_2, P_res2);
 
     // Compute and print precision statistics
     heongpu::PrecisionStats prec_stats =
