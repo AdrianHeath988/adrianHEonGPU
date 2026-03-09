@@ -852,13 +852,17 @@ namespace heongpu
     __host__ void
     HEOperator<Scheme::CKKS>::relinearize_seal_method_inplace_ckks(
         Ciphertext<Scheme::CKKS>& input1, Relinkey<Scheme::CKKS>& relin_key,
-        const cudaStream_t stream)
+        const cudaStream_t stream, RelinTrace * trace)
     {
         int first_rns_mod_count = context_->Q_prime_size;
         int current_rns_mod_count = context_->Q_prime_size - input1.depth_;
 
         int first_decomp_count = context_->Q_size;
         int current_decomp_count = context_->Q_size - input1.depth_;
+
+        size_t temp1_bytes = context_->n * current_decomp_count * current_rns_mod_count * sizeof(Data64);
+        size_t temp2_bytes = context_->n * 2 * current_rns_mod_count * sizeof(Data64);
+        size_t input_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
 
         gpuntt::ntt_rns_configuration<Data64> cfg_intt = {
             .n_power = context_->n_power,
@@ -869,10 +873,15 @@ namespace heongpu
             .mod_inverse = context_->n_inverse_->data(),
             .stream = stream};
 
-        gpuntt::GPU_INTT_Inplace(
+        gpuntt::GPU_INTT_Inplace<Data64>(
             input1.data() + (current_decomp_count << (context_->n_power + 1)),
-            context_->intt_table_->data(), context_->modulus_->data(), cfg_intt,
-            current_decomp_count, current_decomp_count);
+            reinterpret_cast<Root<Data64>*>(context_->intt_table_->data()), // <--- MUST CAST THIS
+            reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), // <--- MUST CAST THIS
+            cfg_intt,
+            current_decomp_count, 
+            current_decomp_count, 
+            (trace ? trace->intt1_steps : nullptr)
+        );
 
         DeviceVector<Data64> temp_relin(
             (context_->n * context_->Q_size * context_->Q_prime_size) +
@@ -890,6 +899,9 @@ namespace heongpu
             current_rns_mod_count, context_->n_power);
 
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        if (trace && trace->broadcast_out) {
+            cudaMemcpyAsync(trace->broadcast_out, temp1_relin, temp1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
 
         gpuntt::ntt_rns_configuration<Data64> cfg_ntt = {
             .n_power = context_->n_power,
@@ -937,6 +949,10 @@ namespace heongpu
             HEONGPU_CUDA_CHECK(cudaGetLastError());
         }
 
+        if (trace && trace->keyswitch_out) {
+            cudaMemcpyAsync(trace->keyswitch_out, temp2_relin, temp2_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
+
         gpuntt::ntt_rns_configuration<Data64> cfg_intt2 = {
             .n_power = context_->n_power,
             .ntt_type = gpuntt::INVERSE,
@@ -951,7 +967,8 @@ namespace heongpu
             context_->intt_table_->data() +
                 (first_decomp_count << context_->n_power),
             context_->modulus_->data() + first_decomp_count, cfg_intt2, 2, 1,
-            new_input_locations + (input1.depth_ * 2));
+            new_input_locations + (input1.depth_ * 2), 
+            (trace ? trace->intt2_steps : nullptr));
 
         divide_round_lastq_leveled_stage_one_kernel<<<
             dim3((context_->n >> 8), 2, 1), 256, 0, stream>>>(
@@ -960,10 +977,17 @@ namespace heongpu
             context_->n_power, first_decomp_count, current_decomp_count);
 
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        if (trace && trace->div_round_stage1_out) {
+            // temp1_relin gets overwritten here, save it
+            size_t round1_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->div_round_stage1_out, temp1_relin, round1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
+
 
         gpuntt::GPU_NTT_Inplace(temp1_relin, context_->ntt_table_->data(),
                                 context_->modulus_->data(), cfg_ntt,
-                                2 * current_decomp_count, current_decomp_count);
+                                2 * current_decomp_count, current_decomp_count,
+                            (trace ? trace->ntt2_steps : nullptr));
 
         divide_round_lastq_leveled_stage_two_kernel<<<
             dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
@@ -973,6 +997,9 @@ namespace heongpu
                       current_decomp_count);
 
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        if (trace && trace->final_out) {
+            cudaMemcpyAsync(trace->final_out, input1.data(), input_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
     }
 
     __host__ void
