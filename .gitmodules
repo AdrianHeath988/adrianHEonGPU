@@ -3,7 +3,7 @@
 	url = https://github.com/Alisah-Ozcan/GPU-FFT
 [submodule "thirdparty/GPU-NTT"]
 	path = thirdparty/GPU-NTT
-	url = https://github.com/Alisah-Ozcan/GPU-NTT
+	url = git@github.com:AdrianHeath988/GPU-NTT.git
 [submodule "thirdparty/RNGonGPU"]
 	path = thirdparty/RNGonGPU
 	url = https://github.com/Alisah-Ozcan/RNGonGPU
