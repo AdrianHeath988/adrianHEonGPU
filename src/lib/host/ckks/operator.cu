@@ -848,7 +848,7 @@ namespace heongpu
 
         output.memory_set(std::move(output_memory));
     }
-
+    #include <iostream>
     __host__ void
     HEOperator<Scheme::CKKS>::relinearize_seal_method_inplace_ckks(
         Ciphertext<Scheme::CKKS>& input1, Relinkey<Scheme::CKKS>& relin_key,
@@ -922,7 +922,7 @@ namespace heongpu
             temp1_relin, context_->ntt_table_->data(),
             context_->modulus_->data(), cfg_ntt,
             current_decomp_count * current_rns_mod_count, current_rns_mod_count,
-            new_prime_locations + location);
+            new_prime_locations + location, (trace ? trace->ntt1_steps : nullptr));
 
         // TODO: make it efficient
         int iteration_count_1 = current_decomp_count / 4;
@@ -1000,6 +1000,9 @@ namespace heongpu
         if (trace && trace->final_out) {
             cudaMemcpyAsync(trace->final_out, input1.data(), input_bytes, cudaMemcpyDeviceToDevice, stream);
         }
+
+        
+
     }
 
     __host__ void

@@ -956,7 +956,7 @@ namespace heongpu
         //Used to save trace on Relin so that it can later be proven
         struct RelinTrace {
             // 1. First iNTT on c2
-            Data64** intt1_steps = nullptr; 
+            Data64* intt1_steps = nullptr; 
             
             // 2. Output of the broadcast kernel
             Data64* broadcast_out = nullptr; 
