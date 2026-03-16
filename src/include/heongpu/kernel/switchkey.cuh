@@ -17,7 +17,8 @@ namespace heongpu
     __global__ void
     cipher_broadcast_leveled_kernel(Data64* input, Data64* output,
                                     Modulus64* modulus, int first_rns_mod_count,
-                                    int current_rns_mod_count, int n_power);
+                                    int current_rns_mod_count, int n_power,
+                                    Data64* broadcast_out = nullptr, Data64* broadcast_quotients = nullptr);
 
     __global__ void keyswitch_multiply_accumulate_kernel(
         Data64* input, const Data64* __restrict__ relinkey, Data64* output,

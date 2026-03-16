@@ -29,7 +29,9 @@ namespace heongpu
     __global__ void
     cipher_broadcast_leveled_kernel(Data64* input, Data64* output,
                                     Modulus64* modulus, int first_rns_mod_count,
-                                    int current_rns_mod_count, int n_power)
+                                    int current_rns_mod_count, int n_power,
+                                Data64* broadcast_out,
+                                Data64* broadcast_quotients)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x; // Ring Sizes
         int block_y = blockIdx.y; // Current Decomposition Modulus Count
@@ -54,7 +56,18 @@ namespace heongpu
             Data64 result =
                 OPERATOR_GPU_64::reduce_forced(input_, modulus[mod_index]);
 
-            output[idx + (i << n_power) + location] = result;
+            int global_out_idx = idx + (i << n_power) + location;
+            output[global_out_idx] = result;
+
+            if (broadcast_out) {
+                broadcast_out[global_out_idx] = result;
+            }
+
+            // --- EXTRACT QUOTIENT FOR SNARK WITNESS ---
+            if (broadcast_quotients) {
+                // k = input / p
+                broadcast_quotients[global_out_idx] = input_ / modulus[mod_index].value; 
+            }
         }
     }
 

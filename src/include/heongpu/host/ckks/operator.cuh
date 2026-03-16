@@ -960,6 +960,7 @@ namespace heongpu
             
             // 2. Output of the broadcast kernel
             Data64* broadcast_out = nullptr; 
+            Data64* broadcast_quotient = nullptr; 
             
             // 3. Forward NTT on the broadcasted decomposition
             Data64** ntt1_steps = nullptr; 

@@ -896,7 +896,8 @@ namespace heongpu
                                           256, 0, stream>>>(
             input1.data() + (current_decomp_count << (context_->n_power + 1)),
             temp1_relin, context_->modulus_->data(), first_rns_mod_count,
-            current_rns_mod_count, context_->n_power);
+            current_rns_mod_count, context_->n_power, 
+            (trace ? trace->broadcast_out : nullptr), (trace ? trace->broadcast_quotient : nullptr));
 
         HEONGPU_CUDA_CHECK(cudaGetLastError());
         if (trace && trace->broadcast_out) {
