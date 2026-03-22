@@ -963,19 +963,19 @@ namespace heongpu
             Data64* broadcast_quotient = nullptr; 
             
             // 3. Forward NTT on the broadcasted decomposition
-            Data64** ntt1_steps = nullptr; 
+            Data64* ntt1_steps = nullptr; 
             
             // 4. Output of the keyswitch (multiply-accumulate)
             Data64* keyswitch_out = nullptr; 
             
             // 5. iNTT on the keyswitch result
-            Data64** intt2_steps = nullptr; 
+            Data64* intt2_steps = nullptr; 
             
             // 6. Output of divide & round stage 1
             Data64* div_round_stage1_out = nullptr; 
             
             // 7. Forward NTT on the rounded values
-            Data64** ntt2_steps = nullptr; 
+            Data64* ntt2_steps = nullptr; 
             
             // 8. Final output after divide & round stage 2
             Data64* final_out = nullptr; 
@@ -1017,7 +1017,7 @@ namespace heongpu
                             break;
                         case 2: // KEYSWITCHING_METHOD_II
                             relinearize_external_product_method2_inplace_ckks(
-                                input1_, relin_key, options.stream_);
+                                input1_, relin_key, options.stream_, trace);
                             break;
                         default:
                             throw std::invalid_argument(
@@ -1616,7 +1616,7 @@ namespace heongpu
 
         __host__ void relinearize_external_product_method2_inplace_ckks(
             Ciphertext<Scheme::CKKS>& input1, Relinkey<Scheme::CKKS>& relin_key,
-            const cudaStream_t stream);
+            const cudaStream_t stream, RelinTrace* trace = nullptr);
 
         ///////////////////////////////////////////////////
 

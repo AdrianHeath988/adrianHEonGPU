@@ -968,8 +968,7 @@ namespace heongpu
             context_->intt_table_->data() +
                 (first_decomp_count << context_->n_power),
             context_->modulus_->data() + first_decomp_count, cfg_intt2, 2, 1,
-            new_input_locations + (input1.depth_ * 2), 
-            (trace ? trace->intt2_steps : nullptr));
+            new_input_locations + (input1.depth_ * 2));
 
         divide_round_lastq_leveled_stage_one_kernel<<<
             dim3((context_->n >> 8), 2, 1), 256, 0, stream>>>(
@@ -987,8 +986,7 @@ namespace heongpu
 
         gpuntt::GPU_NTT_Inplace(temp1_relin, context_->ntt_table_->data(),
                                 context_->modulus_->data(), cfg_ntt,
-                                2 * current_decomp_count, current_decomp_count,
-                            (trace ? trace->ntt2_steps : nullptr));
+                                2 * current_decomp_count, current_decomp_count);
 
         divide_round_lastq_leveled_stage_two_kernel<<<
             dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
@@ -1009,8 +1007,9 @@ namespace heongpu
     __host__ void
     HEOperator<Scheme::CKKS>::relinearize_external_product_method2_inplace_ckks(
         Ciphertext<Scheme::CKKS>& input1, Relinkey<Scheme::CKKS>& relin_key,
-        const cudaStream_t stream)
+        const cudaStream_t stream, RelinTrace * trace) // <--- ADDED TRACE
     {
+        std::cout << "In relin 2 method" << std::endl;
         int first_rns_mod_count = context_->Q_prime_size;
         int current_rns_mod_count = context_->Q_prime_size - input1.depth_;
 
@@ -1034,10 +1033,14 @@ namespace heongpu
             counter--;
         }
 
-        gpuntt::GPU_INTT_Inplace(
+        // <--- TRACE INTT ADDED & CASTS APPLIED
+        gpuntt::GPU_INTT_Inplace<Data64>(
             input1.data() + (current_decomp_count << (context_->n_power + 1)),
-            context_->intt_table_->data(), context_->modulus_->data(), cfg_intt,
-            current_decomp_count, current_decomp_count);
+            reinterpret_cast<Root<Data64>*>(context_->intt_table_->data()), 
+            reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
+            cfg_intt,
+            current_decomp_count, current_decomp_count,
+            (trace ? trace->intt1_steps : nullptr));
 
         DeviceVector<Data64> temp_relin(
             (context_->n * context_->Q_size * context_->Q_prime_size) +
@@ -1066,7 +1069,14 @@ namespace heongpu
             context_->n_power, context_->d_leveled->operator[](input1.depth_),
             current_rns_mod_count, current_decomp_count, input1.depth_,
             context_->prime_location_leveled->data() + location);
+            
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        
+        // <--- TRACE BROADCAST (BASE CONVERSION) ADDED
+        if (trace && trace->broadcast_out) {
+            size_t temp1_bytes = context_->n * context_->d_leveled->operator[](input1.depth_) * current_rns_mod_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->broadcast_out, temp1_relin, temp1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
 
         gpuntt::ntt_rns_configuration<Data64> cfg_ntt = {
             .n_power = context_->n_power,
@@ -1076,18 +1086,23 @@ namespace heongpu
             .zero_padding = false,
             .stream = stream};
 
-        gpuntt::GPU_NTT_Modulus_Ordered_Inplace(
-            temp1_relin, context_->ntt_table_->data(),
-            context_->modulus_->data(), cfg_ntt,
+        // <--- TRACE NTT ADDED & CASTS APPLIED
+        gpuntt::GPU_NTT_Modulus_Ordered_Inplace<Data64>(
+            temp1_relin, 
+            reinterpret_cast<Root<Data64>*>(context_->ntt_table_->data()),
+            reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
+            cfg_ntt,
             context_->d_leveled->operator[](input1.depth_) *
                 current_rns_mod_count,
-            current_rns_mod_count, new_prime_locations + location);
+            current_rns_mod_count, new_prime_locations + location,
+            (trace ? trace->ntt1_steps : nullptr));
 
         // TODO: make it efficient
         int iteration_count_1 =
             context_->d_leveled->operator[](input1.depth_) / 4;
         int iteration_count_2 =
             context_->d_leveled->operator[](input1.depth_) % 4;
+            
         if (relin_key.storage_type_ == storage_type::DEVICE)
         {
             keyswitch_multiply_accumulate_leveled_method_II_kernel<<<
@@ -1112,9 +1127,18 @@ namespace heongpu
             HEONGPU_CUDA_CHECK(cudaGetLastError());
         }
 
-        gpuntt::GPU_NTT_Modulus_Ordered_Inplace(
-            temp2_relin, context_->intt_table_->data(),
-            context_->modulus_->data(), cfg_intt, 2 * current_rns_mod_count,
+        // <--- TRACE KEYSWITCH ADDED
+        if (trace && trace->keyswitch_out) {
+            size_t temp2_bytes = context_->n * 2 * current_rns_mod_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->keyswitch_out, temp2_relin, temp2_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
+
+        // Apply Casts here as well for safety
+        gpuntt::GPU_NTT_Modulus_Ordered_Inplace<Data64>(
+            temp2_relin, 
+            reinterpret_cast<Root<Data64>*>(context_->intt_table_->data()),
+            reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
+            cfg_intt, 2 * current_rns_mod_count,
             current_rns_mod_count, new_prime_locations + location);
 
         divide_round_lastq_extended_leveled_kernel<<<
@@ -1125,16 +1149,34 @@ namespace heongpu
                       current_rns_mod_count, current_decomp_count,
                       first_rns_mod_count, first_decomp_count,
                       context_->P_size);
+                      
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        
+        // <--- TRACE ROUNDING STAGE 1 ADDED
+        if (trace && trace->div_round_stage1_out) {
+            size_t round1_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->div_round_stage1_out, temp1_relin, round1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
 
-        gpuntt::GPU_NTT_Inplace(temp1_relin, context_->ntt_table_->data(),
-                                context_->modulus_->data(), cfg_ntt,
-                                2 * current_decomp_count, current_decomp_count);
+        // Apply Casts here as well for safety
+        gpuntt::GPU_NTT_Inplace<Data64>(
+            temp1_relin, 
+            reinterpret_cast<Root<Data64>*>(context_->ntt_table_->data()),
+            reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
+            cfg_ntt,
+            2 * current_decomp_count, current_decomp_count);
 
         addition<<<dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
                    stream>>>(temp1_relin, input1.data(), input1.data(),
                              context_->modulus_->data(), context_->n_power);
+                             
         HEONGPU_CUDA_CHECK(cudaGetLastError());
+        
+        // <--- TRACE FINAL OUT ADDED
+        if (trace && trace->final_out) {
+            size_t input_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->final_out, input1.data(), input_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
     }
 
     __host__ void HEOperator<Scheme::CKKS>::rescale_inplace_ckks_leveled(
