@@ -95,6 +95,18 @@ namespace heongpu
             return prime_vector_;
         }
 
+        inline std::shared_ptr<DeviceVector<Root64>> get_ntt_table() const noexcept
+        {
+            return ntt_table_;
+        }
+        inline std::shared_ptr<std::vector<int>> get_d_leveled() const noexcept
+        {
+            return d_leveled;
+        }
+        inline int get_key_modulus_count_P() const noexcept 
+        {
+            return P_size;
+        }
         void save(std::ostream& os) const;
 
         void load(std::istream& is);
