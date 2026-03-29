@@ -107,6 +107,22 @@ namespace heongpu
         {
             return P_size;
         }
+
+        // ==========================================
+        // Getters for ModDown Constants
+        // ==========================================
+        std::shared_ptr<DeviceVector<Data64>> get_last_q_modinv() const {
+            return last_q_modinv_;
+        }
+
+        std::shared_ptr<DeviceVector<Data64>> get_half_mod() const {
+            return half_mod_;
+        }
+
+        std::shared_ptr<DeviceVector<Data64>> get_half_p() const {
+            return half_p_;
+        }
+        
         void save(std::ostream& os) const;
 
         void load(std::istream& is);

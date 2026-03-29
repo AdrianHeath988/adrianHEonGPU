@@ -986,7 +986,8 @@ namespace heongpu
 
         gpuntt::GPU_NTT_Inplace(temp1_relin, context_->ntt_table_->data(),
                                 context_->modulus_->data(), cfg_ntt,
-                                2 * current_decomp_count, current_decomp_count);
+                                2 * current_decomp_count, current_decomp_count,
+                                (trace ? trace->ntt2_steps : nullptr));
 
         divide_round_lastq_leveled_stage_two_kernel<<<
             dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
@@ -1139,7 +1140,12 @@ namespace heongpu
             reinterpret_cast<Root<Data64>*>(context_->intt_table_->data()),
             reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
             cfg_intt, 2 * current_rns_mod_count,
-            current_rns_mod_count, new_prime_locations + location);
+            current_rns_mod_count, new_prime_locations + location,
+            (trace ? trace->intt2_steps : nullptr));
+        
+        std::cout << "Completed intt2 in relin 2 method" << std::endl;
+
+        
 
         divide_round_lastq_extended_leveled_kernel<<<
             dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
@@ -1158,13 +1164,30 @@ namespace heongpu
             cudaMemcpyAsync(trace->div_round_stage1_out, temp1_relin, round1_bytes, cudaMemcpyDeviceToDevice, stream);
         }
 
+        // ========== DEBUG: Check temp1_relin BEFORE NTT2 ==========
+        {
+            std::vector<uint64_t> temp1_check_c0(64), temp1_check_c1(64);
+            size_t N = context_->n;
+            
+            // Copy c0 component (at offset 0)
+            cudaMemcpy(temp1_check_c0.data(), temp1_relin + 0*N, 64*sizeof(uint64_t), cudaMemcpyDeviceToHost);
+            
+            // Copy c1 component (at offset current_decomp_count*N)
+            cudaMemcpy(temp1_check_c1.data(), temp1_relin + current_decomp_count*N, 64*sizeof(uint64_t), cudaMemcpyDeviceToHost);
+            
+            std::cout << "\n[DEBUG-BEFORE-NTT2] temp1_relin checkpoint BEFORE GPU_NTT_Inplace:" << std::endl;
+            std::cout << "[DEBUG-BEFORE-NTT2] c0 component [0-3]: " << temp1_check_c0[0] << ", " << temp1_check_c0[1] << ", " << temp1_check_c0[2] << ", " << temp1_check_c0[3] << std::endl;
+            std::cout << "[DEBUG-BEFORE-NTT2] c1 component [0-3]: " << temp1_check_c1[0] << ", " << temp1_check_c1[1] << ", " << temp1_check_c1[2] << ", " << temp1_check_c1[3] << std::endl;
+            std::cout << "[DEBUG-BEFORE-NTT2] current_decomp_count: " << current_decomp_count << ", N: " << N << std::endl;
+        }
+
         // Apply Casts here as well for safety
         gpuntt::GPU_NTT_Inplace<Data64>(
             temp1_relin, 
             reinterpret_cast<Root<Data64>*>(context_->ntt_table_->data()),
             reinterpret_cast<Modulus<Data64>*>(context_->modulus_->data()), 
             cfg_ntt,
-            2 * current_decomp_count, current_decomp_count);
+            2 * current_decomp_count, current_decomp_count, (trace ? trace->ntt2_steps : nullptr));
 
         addition<<<dim3((context_->n >> 8), current_decomp_count, 2), 256, 0,
                    stream>>>(temp1_relin, input1.data(), input1.data(),
