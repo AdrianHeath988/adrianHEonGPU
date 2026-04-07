@@ -1347,6 +1347,18 @@ namespace heongpu
                 options, (&input1 == &output));
         }
 
+        struct RescaleTrace {
+            // --- Single State Buffers ---
+            Data64* state0_initial = nullptr; 
+            Data64* state1_intt_dropped_limb = nullptr; 
+            Data64* state2_div_round_stage1_out = nullptr; 
+            Data64* state3_ntt_delta_out = nullptr; 
+            Data64* state4_final_out = nullptr; 
+
+            // --- Multi-Stage NTT/INTT Buffers ---
+            Data64* intt_steps = nullptr; // Stages for the 1 dropped limb (c0, c1)
+            Data64* ntt_steps = nullptr;  // Stages for the remaining limbs (c0, c1)  
+        };
         /**
          * @brief Rescales a ciphertext in-place, modifying the input
          * ciphertext.
@@ -1355,7 +1367,7 @@ namespace heongpu
          */
         __host__ void
         rescale_inplace(Ciphertext<Scheme::CKKS>& input1,
-                        const ExecutionOptions& options = ExecutionOptions())
+                        const ExecutionOptions& options = ExecutionOptions(), RescaleTrace* trace = nullptr)
         {
             if ((!input1.rescale_required_) || input1.relinearization_required_)
             {
@@ -1372,7 +1384,7 @@ namespace heongpu
             input_storage_manager(
                 input1,
                 [&](Ciphertext<Scheme::CKKS>& input1_)
-                { rescale_inplace_ckks_leveled(input1_, options.stream_); },
+                { rescale_inplace_ckks_leveled(input1_, options.stream_, trace); },
                 options, true);
 
             input1.rescale_required_ = false;
@@ -1671,7 +1683,7 @@ namespace heongpu
 
         __host__ void
         rescale_inplace_ckks_leveled(Ciphertext<Scheme::CKKS>& input1,
-                                     const cudaStream_t stream);
+                                     const cudaStream_t stream, RescaleTrace* trace = nullptr);
 
         ///////////////////////////////////////////////////
 

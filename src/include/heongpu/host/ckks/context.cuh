@@ -122,6 +122,17 @@ namespace heongpu
         std::shared_ptr<DeviceVector<Data64>> get_half_p() const {
             return half_p_;
         }
+        std::shared_ptr<DeviceVector<Data64>> get_rescaled_last_q_modinv() const {
+            return rescaled_last_q_modinv_;
+        }
+
+        std::shared_ptr<DeviceVector<Data64>> get_rescaled_half() const {
+            return rescaled_half_;
+        }
+
+        std::shared_ptr<DeviceVector<Data64>> get_rescaled_half_mod() const {
+            return rescaled_half_mod_;
+        }
         
         void save(std::ostream& os) const;
 

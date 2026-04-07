@@ -1203,10 +1203,17 @@ namespace heongpu
     }
 
     __host__ void HEOperator<Scheme::CKKS>::rescale_inplace_ckks_leveled(
-        Ciphertext<Scheme::CKKS>& input1, const cudaStream_t stream)
+        Ciphertext<Scheme::CKKS>& input1, const cudaStream_t stream, RescaleTrace * trace)
     {
         int first_decomp_count = context_->Q_size;
         int current_decomp_count = context_->Q_size - input1.depth_;
+        std::cout << "Rescaling at depth " << input1.depth_ << " with current_decomp_count " << current_decomp_count << std::endl;
+        
+        // <--- TRACE STATE 0: INITIAL INPUT
+        if (trace && trace->state0_initial) {
+            size_t initial_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->state0_initial, input1.data(), initial_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
 
         gpuntt::ntt_rns_configuration<Data64> cfg_intt = {
             .n_power = context_->n_power,
@@ -1226,7 +1233,6 @@ namespace heongpu
             .zero_padding = false,
             .stream = stream};
 
-        // int counter = first_rns_mod_count - 2;
         int counter = first_decomp_count - 1;
         int location = 0;
         for (int i = 0; i < input1.depth_; i++)
@@ -1249,8 +1255,17 @@ namespace heongpu
                 ((current_decomp_count - 1) << context_->n_power),
             context_->modulus_->data() + (current_decomp_count - 1), cfg_intt,
             2, 1,
-            new_input_locations + ((input1.depth_ + context_->P_size) * 2));
-
+            new_input_locations + ((input1.depth_ + context_->P_size) * 2),
+            (trace ? trace->intt_steps : nullptr));
+    
+        std::cout << "Completed intt in rescale" << std::endl;
+        
+        // <--- TRACE STATE 1: AFTER INTT
+        if (trace && trace->state1_intt_dropped_limb) {
+            size_t intt_bytes = context_->n * 2 * current_decomp_count * sizeof(Data64);
+            cudaMemcpyAsync(trace->state1_intt_dropped_limb, input1.data(), intt_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
+        
         divide_round_lastq_leveled_stage_one_kernel<<<
             dim3((context_->n >> 8), 2, 1), 256, 0, stream>>>(
             input1.data(), temp1_rescale, context_->modulus_->data(),
@@ -1260,10 +1275,24 @@ namespace heongpu
 
         HEONGPU_CUDA_CHECK(cudaGetLastError());
 
+        // <--- TRACE STATE 2: DIV ROUND STAGE 1
+        if (trace && trace->state2_div_round_stage1_out) {
+            size_t temp1_bytes = context_->n * 2 * (current_decomp_count - 1) * sizeof(Data64);
+            cudaMemcpyAsync(trace->state2_div_round_stage1_out, temp1_rescale, temp1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
+
+        // <--- TRACE NTT STEPS INJECTED HERE
         gpuntt::GPU_NTT_Inplace(temp1_rescale, context_->ntt_table_->data(),
                                 context_->modulus_->data(), cfg_ntt,
                                 2 * (current_decomp_count - 1),
-                                (current_decomp_count - 1));
+                                (current_decomp_count - 1), 
+                                (trace ? trace->ntt_steps : nullptr));
+
+        // <--- TRACE STATE 3: NTT DELTA OUT
+        if (trace && trace->state3_ntt_delta_out) {
+            size_t temp1_bytes = context_->n * 2 * (current_decomp_count - 1) * sizeof(Data64);
+            cudaMemcpyAsync(trace->state3_ntt_delta_out, temp1_rescale, temp1_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
 
         move_cipher_leveled_kernel<<<dim3((context_->n >> 8),
                                           current_decomp_count - 1, 2),
@@ -1290,6 +1319,12 @@ namespace heongpu
         }
 
         input1.depth_++;
+        
+        // <--- TRACE STATE 4: FINAL OUT
+        if (trace && trace->state4_final_out) {
+            size_t final_bytes = context_->n * 2 * (current_decomp_count - 1) * sizeof(Data64);
+            cudaMemcpyAsync(trace->state4_final_out, input1.data(), final_bytes, cudaMemcpyDeviceToDevice, stream);
+        }
     }
 
     __host__ void HEOperator<Scheme::CKKS>::mod_drop_ckks_leveled_inplace(
