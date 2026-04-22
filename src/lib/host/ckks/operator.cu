@@ -1249,6 +1249,15 @@ namespace heongpu
         Data64* temp2_rescale =
             temp1_rescale + (2 * context_->n * context_->Q_prime_size);
 
+        // The order array directs the kernel to read/write at positions
+        // [c0_pos, c1_pos] where c1_pos = c0_pos + current_decomp_count.
+        // With batch_size * mod_count = 2, the natural per-stage trace
+        // stride would be 2*N elements — but the kernel writes span up to
+        // (c1_pos + 1) * N. To prevent stage-k+? c0 writes from clobbering
+        // stage-k c1 writes within the same kernel call, supply a stride
+        // large enough to fit the full address range:
+        // 2 * Q_prime_size  (covers the whole [c0_*, c1_*] index space).
+        size_t safe_trace_polys = 2u * context_->Q_prime_size;
         gpuntt::GPU_NTT_Poly_Ordered_Inplace(
             input1.data(),
             context_->intt_table_->data() +
@@ -1256,7 +1265,8 @@ namespace heongpu
             context_->modulus_->data() + (current_decomp_count - 1), cfg_intt,
             2, 1,
             new_input_locations + ((input1.depth_ + context_->P_size) * 2),
-            (trace ? trace->intt_steps : nullptr));
+            (trace ? trace->intt_steps : nullptr),
+            safe_trace_polys);
     
         std::cout << "Completed intt in rescale" << std::endl;
         
